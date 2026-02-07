@@ -10,6 +10,7 @@ import Sidebar from "./components/Sidebar";
 import { registerLicense } from '@syncfusion/ej2-base';
 import UserApproval from "./pages/UserApproval";
 import MaterialPage from "./pages/MaterialPage";
+import LabourPage from "./pages/LabourPage";
 
 export default function App() {
   registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/sidebar" element={<Sidebar role={""} />} />
           <Route path="/material-page" element={<MaterialPage />} />
                <Route path="/userapproval" element={<UserApproval />} />
+               <Route path="/labour-page" element={<LabourPage />} />
           {/* Redirect unknown routes to login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
