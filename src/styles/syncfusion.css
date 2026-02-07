@@ -1,0 +1,24 @@
+/* src/styles/syncfusion.css */
+/* Base styles */
+@import "@syncfusion/ej2-base/styles/material.css";
+
+/* Grid component */
+@import "@syncfusion/ej2-react-grids/styles/material.css";
+
+/* Popups (for dialogs) */
+@import "@syncfusion/ej2-react-popups/styles/material.css";
+
+/* Buttons */
+@import "@syncfusion/ej2-buttons/styles/material.css";
+
+/* Inputs (if using forms) */
+@import "@syncfusion/ej2-inputs/styles/material.css";
+
+/* Dropdowns (if using select) */
+@import "@syncfusion/ej2-dropdowns/styles/material.css";
+
+/* Calendars/DatePickers (if using) */
+@import "@syncfusion/ej2-calendars/styles/material.css";
+
+/* Icons */
+@import "@syncfusion/ej2-icons/styles/material.css";

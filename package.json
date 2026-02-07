@@ -16,6 +16,7 @@
     "@syncfusion/ej2-react-grids": "^32.2.3",
     "@syncfusion/ej2-react-layouts": "^32.2.3",
     "@syncfusion/ej2-react-pivotview": "^32.2.3",
+    "@syncfusion/ej2-react-popups": "^32.2.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0"

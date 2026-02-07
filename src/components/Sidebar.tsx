@@ -17,7 +17,9 @@ const allSidebarLinks: SidebarLink[] = [
   { name: "Projects", href: "/projects", icon: "📁", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR","CLIENT"] },
   { name: "Teams", href: "/teams", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
   { name: "Reports", href: "/reports", icon: "📊", roles: ["SUPER_ADMIN","ACCOUNTANT","PROJECT_MANAGER"] },
-  { name: "User Approvals", href: "/approvals", icon: "✅", roles: ["SUPER_ADMIN"] }, // only Super Admin
+  { name: "User Approvals", href: "/userapproval", icon: "✅", roles: ["SUPER_ADMIN"] }, // only Super Admin
+  { name: "Users", href: "/users", icon: "👷", roles: ["SUPER_ADMIN"] },
+   { name: "Material Details", href: "/material-page", icon: "👷", roles: ["SUPER_ADMIN"] }
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ role }) => {

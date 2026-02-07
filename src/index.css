@@ -1,12 +1,13 @@
+@import "../src/styles/syncfusion.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Root variables */
 :root {
-  --bs-primary: #1f3a5f;   /* Deep blue (trust, stability) */
-  --bs-secondary: #f5f7fa; /* Light background */
-  --bs-accent: #f59e0b;   /* Subtle amber (construction touch) */
+  --bs-primary: #1f3a5f;   
+  --bs-secondary: #f5f7fa; 
+  --bs-accent: #f59e0b; 
   --bs-text: #1f2937;
   --bs-muted: #6b7280;
 }
@@ -45,7 +46,28 @@
   }
 }
 
+/* Global fix to prevent horizontal scroll */
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
 
+/* Container styling */
+.dashboard-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Syncfusion specific fixes */
+.e-grid,
+.e-chart,
+.e-gantt,
+.e-pivotview {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

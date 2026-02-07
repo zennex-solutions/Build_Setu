@@ -200,95 +200,111 @@
 
 
 
-import { DashboardLayoutComponent, type PanelModel } from "@syncfusion/ej2-react-layouts";
-import { GridComponent, ColumnsDirective, ColumnDirective, Page, Sort, Filter } from "@syncfusion/ej2-react-grids";
-import { ChartComponent, SeriesCollectionDirective, SeriesDirective, Inject, ColumnSeries, Tooltip, Legend, Category } from "@syncfusion/ej2-react-charts";
-import { GanttComponent, ColumnsDirective as GanttColumns, ColumnDirective as GanttColumn, Selection, Toolbar } from "@syncfusion/ej2-react-gantt";
-import { PivotViewComponent } from "@syncfusion/ej2-react-pivotview";
-import { DropDownListComponent } from "@syncfusion/ej2-react-dropdowns";
-import { useState } from "react";
+// import { DashboardLayoutComponent, type PanelModel } from "@syncfusion/ej2-react-layouts";
+// import { GridComponent, ColumnsDirective, ColumnDirective, Page, Sort, Filter } from "@syncfusion/ej2-react-grids";
+// import { ChartComponent, SeriesCollectionDirective, SeriesDirective, Inject, ColumnSeries, Tooltip, Legend, Category } from "@syncfusion/ej2-react-charts";
+// import { GanttComponent, ColumnsDirective as GanttColumns, ColumnDirective as GanttColumn, Selection, Toolbar } from "@syncfusion/ej2-react-gantt";
+// import { PivotViewComponent } from "@syncfusion/ej2-react-pivotview";
+// import { DropDownListComponent } from "@syncfusion/ej2-react-dropdowns";
+// import { useState } from "react";
 
-const Dashboard = () => {
-  const [selectedProject, setSelectedProject] = useState("All Projects");
+// const Dashboard = () => {
+//   const [selectedProject, setSelectedProject] = useState("All Projects");
 
-  // Example filter options
-  const projects = ["All Projects", "Highway Expansion", "Office Renovation"];
-const panels: PanelModel[] = [
-  { id: 'panel1', sizeX: 1, sizeY: 1, row: 0, col: 0, content: '<div>Ongoing Projects: 5</div>' },
-  { id: 'panel2', sizeX: 1, sizeY: 1, row: 0, col: 1, content: '<div>Teams: 12</div>' },
-];
+//   // Example filter options
+//   const projects = ["All Projects", "Highway Expansion", "Office Renovation"];
+// const panels: PanelModel[] = [
+//   { id: 'panel1', sizeX: 1, sizeY: 1, row: 0, col: 0, content: '<div>Ongoing Projects: 5</div>' },
+//   { id: 'panel2', sizeX: 1, sizeY: 1, row: 0, col: 1, content: '<div>Teams: 12</div>' },
+// ];
+//   return (
+//     <div className="dashboard-container">
+//       {/* Cards */}
+//    <DashboardLayoutComponent cellSpacing={[10,10]} columns={4} panels={panels} />
+
+//       {/* Filters */}
+//       <div className="my-4">
+//         <DropDownListComponent 
+//           dataSource={projects} 
+//           value={selectedProject} 
+//           placeholder="Select Project"
+//           change={(e) => setSelectedProject(e.value)}
+//         />
+//       </div>
+
+//       {/* Charts */}
+//       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//         <ChartComponent primaryXAxis={{ valueType: 'Category' }} title="Project Progress">
+//           <Inject services={[ColumnSeries, Tooltip, Legend, Category]} />
+//           <SeriesCollectionDirective>
+//             <SeriesDirective dataSource={[{ x: "Project A", y: 70 }, { x: "Project B", y: 50 }]} xName="x" yName="y" type="Column" />
+//           </SeriesCollectionDirective>
+//         </ChartComponent>
+
+//         <ChartComponent primaryXAxis={{ valueType: 'Category' }} title="Team Workload">
+//           <Inject services={[ColumnSeries, Tooltip, Legend, Category]} />
+//           <SeriesCollectionDirective>
+//             <SeriesDirective dataSource={[{ x: "Team A", y: 30 }, { x: "Team B", y: 50 }]} xName="x" yName="y" type="Column" />
+//           </SeriesCollectionDirective>
+//         </ChartComponent>
+//       </div>
+
+//       {/* DataGrid */}
+//       <div className="my-6">
+//         <GridComponent dataSource={[
+//           { id:1, name: "Highway Expansion", status: "Ongoing", deadline: "2026-10-15" },
+//           { id:2, name: "Office Renovation", status: "Completed", deadline: "2025-12-20" }
+//         ]} allowPaging={true} allowSorting={true} allowFiltering={true}>
+//           <ColumnsDirective>
+//             <ColumnDirective field="name" headerText="Project Name" width={150} />
+//             <ColumnDirective field="status" headerText="Status" width={100} />
+//             <ColumnDirective field="deadline" headerText="Deadline" width={120} />
+//           </ColumnsDirective>
+//           <Inject services={[Page, Sort, Filter]} />
+//         </GridComponent>
+//       </div>
+
+//       {/* Gantt Chart */}
+//       <div className="my-6">
+//         <GanttComponent dataSource={[
+//           { TaskID:1, TaskName:"Project Planning", StartDate:new Date("2026-01-01"), Duration:5, Progress:100 },
+//           { TaskID:2, TaskName:"Execution", StartDate:new Date("2026-01-06"), Duration:10, Progress:50 }
+//         ]} taskFields={{ id:'TaskID', name:'TaskName', startDate:'StartDate', duration:'Duration', progress:'Progress' }} height="300px">
+//           <Inject services={[Selection, Toolbar]} />
+//         </GanttComponent>
+//       </div>
+
+//       {/* Pivot Table */}
+//       <div className="my-6">
+//         <PivotViewComponent dataSourceSettings={{
+//           dataSource: [
+//             { Project: "Highway Expansion", Status: "Ongoing", Budget: 50000 },
+//             { Project: "Office Renovation", Status: "Completed", Budget: 120000 }
+//           ],
+//           rows: [{ name: 'Project' }],
+//           columns: [{ name: 'Status' }],
+//           values: [{ name: 'Budget', caption: 'Total Budget' }],
+//           formatSettings: [{ name: 'Budget', format: 'C0' }]
+//         }} width="100%" height="300px" />
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Dashboard;
+
+
+import Layout from "../components/Layout";
+import DashboardContent from "../components/DashboardContent";
+ // move your Dashboard JSX here
+
+function Dashboard() {
+  const role = "SUPER_ADMIN"; // fetch dynamically from user session/auth
   return (
-    <div className="dashboard-container">
-      {/* Cards */}
-   <DashboardLayoutComponent cellSpacing={[10,10]} columns={4} panels={panels} />
-
-      {/* Filters */}
-      <div className="my-4">
-        <DropDownListComponent 
-          dataSource={projects} 
-          value={selectedProject} 
-          placeholder="Select Project"
-          change={(e) => setSelectedProject(e.value)}
-        />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartComponent primaryXAxis={{ valueType: 'Category' }} title="Project Progress">
-          <Inject services={[ColumnSeries, Tooltip, Legend, Category]} />
-          <SeriesCollectionDirective>
-            <SeriesDirective dataSource={[{ x: "Project A", y: 70 }, { x: "Project B", y: 50 }]} xName="x" yName="y" type="Column" />
-          </SeriesCollectionDirective>
-        </ChartComponent>
-
-        <ChartComponent primaryXAxis={{ valueType: 'Category' }} title="Team Workload">
-          <Inject services={[ColumnSeries, Tooltip, Legend, Category]} />
-          <SeriesCollectionDirective>
-            <SeriesDirective dataSource={[{ x: "Team A", y: 30 }, { x: "Team B", y: 50 }]} xName="x" yName="y" type="Column" />
-          </SeriesCollectionDirective>
-        </ChartComponent>
-      </div>
-
-      {/* DataGrid */}
-      <div className="my-6">
-        <GridComponent dataSource={[
-          { id:1, name: "Highway Expansion", status: "Ongoing", deadline: "2026-10-15" },
-          { id:2, name: "Office Renovation", status: "Completed", deadline: "2025-12-20" }
-        ]} allowPaging={true} allowSorting={true} allowFiltering={true}>
-          <ColumnsDirective>
-            <ColumnDirective field="name" headerText="Project Name" width={150} />
-            <ColumnDirective field="status" headerText="Status" width={100} />
-            <ColumnDirective field="deadline" headerText="Deadline" width={120} />
-          </ColumnsDirective>
-          <Inject services={[Page, Sort, Filter]} />
-        </GridComponent>
-      </div>
-
-      {/* Gantt Chart */}
-      <div className="my-6">
-        <GanttComponent dataSource={[
-          { TaskID:1, TaskName:"Project Planning", StartDate:new Date("2026-01-01"), Duration:5, Progress:100 },
-          { TaskID:2, TaskName:"Execution", StartDate:new Date("2026-01-06"), Duration:10, Progress:50 }
-        ]} taskFields={{ id:'TaskID', name:'TaskName', startDate:'StartDate', duration:'Duration', progress:'Progress' }} height="300px">
-          <Inject services={[Selection, Toolbar]} />
-        </GanttComponent>
-      </div>
-
-      {/* Pivot Table */}
-      <div className="my-6">
-        <PivotViewComponent dataSourceSettings={{
-          dataSource: [
-            { Project: "Highway Expansion", Status: "Ongoing", Budget: 50000 },
-            { Project: "Office Renovation", Status: "Completed", Budget: 120000 }
-          ],
-          rows: [{ name: 'Project' }],
-          columns: [{ name: 'Status' }],
-          values: [{ name: 'Budget', caption: 'Total Budget' }],
-          formatSettings: [{ name: 'Budget', format: 'C0' }]
-        }} width="100%" height="300px" />
-      </div>
-    </div>
+    <Layout role={role}>
+      <DashboardContent />
+    </Layout>
   );
-};
+}
 
 export default Dashboard;
