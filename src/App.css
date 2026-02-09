@@ -40,3 +40,65 @@
 .read-the-docs {
   color: #888;
 } */
+/* Mirroring the junior's Material page style */
+.e-dialog .e-dlg-content {
+    padding: 20px !important;
+    overflow-y: hidden !important; /* Forces scrollbar to disappear */
+}
+
+/* If the form is still too long, this forces it into two columns */
+.crud-form-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+/* This forces the CrudForm to use two columns so it doesn't scroll */
+.e-dialog .e-dlg-content form {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important; /* Forces 2 columns */
+    gap: 15px !important;
+    padding: 10px;
+}
+
+/* This makes sure long fields like "Description" still take up the full width */
+.e-dialog .e-dlg-content form .e-float-input.e-textarea-wrapper,
+.e-dialog .e-dlg-content form .description-field {
+    grid-column: span 2 !important;
+}
+
+/* Kills the scrollbar entirely */
+.e-dialog .e-dlg-content {
+    overflow: hidden !important;
+    max-height: none !important;
+}
+/* This targets the exact internal Syncfusion scroll container */
+.e-dialog .e-dlg-content {
+    overflow: visible !important;
+    display: block !important;
+    max-height: none !important;
+}
+
+/* This stops the outer window from having a scrollbar */
+.e-dlg-container {
+    overflow: hidden !important;
+}
+
+/* Forces the form inside to be short and wide */
+.e-dialog .e-dlg-content form {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+}
+
+/* This makes every input take up half the width so the form is short */
+.e-dialog .e-dlg-content form .e-form-group {
+    flex: 0 0 48% !important;
+}
+
+.no-scroll-dialog .e-dlg-content {
+  overflow: hidden !important;
+}
+
+.no-scroll-dialog .e-dialog {
+  max-height: none !important;
+}

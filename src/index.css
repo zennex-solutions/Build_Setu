@@ -136,3 +136,13 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 } */
+
+
+
+.no-scroll-dialog .e-dlg-content {
+  overflow: hidden !important;
+}
+
+.no-scroll-dialog .e-dialog {
+  max-height: none !important;
+}

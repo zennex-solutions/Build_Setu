@@ -11,6 +11,15 @@ import { registerLicense } from '@syncfusion/ej2-base';
 import UserApproval from "./pages/UserApproval";
 import MaterialPage from "./pages/MaterialPage";
 import LabourPage from "./pages/LabourPage";
+import Suppliers from "./pages/Suppliers";
+import MessagesPage from "./pages/Messages";
+import VariationsPage from "./pages/Variations";
+import ProjectPage from "./pages/ProjectPage";
+import EquipmentPage from "./pages/Equipment";
+
+
+
+
 
 
 export default function App() {
@@ -26,8 +35,13 @@ export default function App() {
           <Route path="/users" element={<UserPage />} />
           <Route path="/sidebar" element={<Sidebar role={""} />} />
           <Route path="/material-page" element={<MaterialPage />} />
-               <Route path="/userapproval" element={<UserApproval />} />
-               <Route path="/labour-page" element={<LabourPage />} />
+          <Route path="/userapproval" element={<UserApproval />} />
+          <Route path="/labour-page" element={<LabourPage />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/messages" element={<MessagesPage />} />
+          <Route path="variations" element={<VariationsPage />} />
+          <Route path="/projects" element={<ProjectPage/>} />
+          <Route path="/euipments" element={<EquipmentPage/>} />
           {/* Redirect unknown routes to login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
