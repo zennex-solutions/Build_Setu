@@ -1,4 +1,3 @@
-import { useState } from "react";
 import CrudForm, { type Field } from "../components/CrudForm";
 import {
   GridComponent, ColumnsDirective, ColumnDirective,
@@ -27,7 +26,7 @@ const initialProjects = [
 const ProjectsPage = () => {
   const {
     data: projects, selectedItem, mode, isDialogOpen, setIsDialogOpen,
-    openAdd, openEdit, handleAdd, handleEdit, handleDelete,
+    openAdd,  handleAdd, handleEdit, 
   } = useCrudOperations(initialProjects);
 
   const handleSubmit = (values: any) => {
