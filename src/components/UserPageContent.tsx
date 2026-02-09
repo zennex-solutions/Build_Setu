@@ -11,7 +11,7 @@ import { DialogComponent } from "@syncfusion/ej2-react-popups";
 
 const fields: Field[] = [
   { name: "name", label: "Name", type: "text" },
-  { name: "email", label: "Email", type: "text" },
+  { name: "email", label: "Email", type: "text" },   
   { name: "role", label: "Role", type: "select", options: ["Admin", "User", "Guest"] },
   { name: "isActive", label: "Active", type: "checkbox" },
 ];
