@@ -13,6 +13,7 @@ import MaterialPage from "./pages/MaterialPage";
 import LabourPage from "./pages/LabourPage";
 import Suppliers from "./pages/Suppliers";
 import MessagesPage from "./pages/Messages";
+import VariationsPage from "./pages/Variations";
 
 export default function App() {
   registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/labour-page" element={<LabourPage />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/messages" element={<MessagesPage />} />
+          <Route path="variations" element={<VariationsPage />} />
           {/* Redirect unknown routes to login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
