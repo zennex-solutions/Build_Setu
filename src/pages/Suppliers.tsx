@@ -235,6 +235,7 @@ const Suppliers = () => {
 
       {/* Add/Edit/View Dialog */}
       <DialogComponent
+       cssClass="no-scroll-dialog"
         visible={isDialogOpen}
         width="700px"
         header={`${mode === "add" ? "Add" : mode === "edit" ? "Edit" : "View"} Supplier`}

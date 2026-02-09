@@ -15,14 +15,7 @@ import Suppliers from "./pages/Suppliers";
 import MessagesPage from "./pages/Messages";
 import VariationsPage from "./pages/Variations";
 import ProjectPage from "./pages/ProjectPage";
-
-
-
-
-
-
-
-
+import EquipmentPage from "./pages/Equipment";
 
 
 
@@ -46,6 +39,7 @@ export default function App() {
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="variations" element={<VariationsPage />} />
           <Route path="/projects" element={<ProjectPage/>} />
+          <Route path="/euipments" element={<EquipmentPage/>} />
           {/* Redirect unknown routes to login */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

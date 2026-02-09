@@ -94,3 +94,11 @@
 .e-dialog .e-dlg-content form .e-form-group {
     flex: 0 0 48% !important;
 }
+
+.no-scroll-dialog .e-dlg-content {
+  overflow: hidden !important;
+}
+
+.no-scroll-dialog .e-dialog {
+  max-height: none !important;
+}

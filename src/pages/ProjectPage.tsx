@@ -78,13 +78,13 @@ const ProjectsPage = () => {
 
       {/* The Popup Form (Matching the Material Dialog) */}
    <DialogComponent
+    cssClass="no-scroll-dialog"
   visible={isDialogOpen}
   width="900px" // Make it very wide
   isModal={true}
   header={mode === "add" ? "Add New Project" : "Edit Project"}
   showCloseIcon={true}
   height="auto" 
-  // This 'target' line is the secret to stopping the scroll
   target={document.body} 
   position={{ X: 'center', Y: 'center' }}
   close={() => setIsDialogOpen(false)}
@@ -96,6 +96,7 @@ const ProjectsPage = () => {
       initialValues={selectedItem || {}}
       onSubmit={handleSubmit}
       onCancel={() => setIsDialogOpen(false)}
+      
     />
   </div>
 </DialogComponent>

@@ -23,7 +23,8 @@ const allSidebarLinks: SidebarLink[] = [
     { name: "Labour Details", href: "/labour-page", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
     { name: "Supplier Details", href: "/suppliers", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
     { name: "Messages", href: "/messages", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-    { name: "Variations", href: "/variations", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] }
+    { name: "Variations", href: "/variations", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
+    { name: "Equipment", href: "/euipments", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] }
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ role }) => {
