@@ -12,6 +12,7 @@ import UserApproval from "./pages/UserApproval";
 import MaterialPage from "./pages/MaterialPage";
 import LabourPage from "./pages/LabourPage";
 
+
 export default function App() {
   registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+           
           <Route path="/users" element={<UserPage />} />
           <Route path="/sidebar" element={<Sidebar role={""} />} />
           <Route path="/material-page" element={<MaterialPage />} />
