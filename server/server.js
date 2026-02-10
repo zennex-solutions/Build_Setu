@@ -70,74 +70,58 @@ async function ensureSuperAdmin() {
     
     console.log('🔐 Generated hash for Admin@123:', hashedPassword.substring(0, 30) + '...');
     
-    // First, remove any existing entry to avoid conflicts
-    db.query('DELETE FROM Registration WHERE Email = ?', ['admin@buildsetu.com'], (err) => {
+    // Check if admin already exists
+    db.query('SELECT id FROM Registration WHERE Email = ?', ['admin@buildsetu.com'], async (err, results) => {
         if (err) {
-            console.error('❌ Cleanup error:', err.message);
-            // Continue anyway
-        }
-        
-        // Insert fresh admin
-        const insertSQL = `
-            INSERT INTO Registration (Username, Email, Password, Role, Status)
-            VALUES (?, ?, ?, 'SUPER_ADMIN', 'APPROVED')
-        `;
-        
-        db.query(insertSQL, ['superadmin', 'admin@buildsetu.com', hashedPassword], (err, result) => {
-            if (err) {
-                console.error('❌ Insert admin error:', err.message);
-                
-                // Try update if insert fails
-                db.query(
-                    'UPDATE Registration SET Password = ?, Role = "SUPER_ADMIN", Status = "APPROVED" WHERE Email = ?',
-                    [hashedPassword, 'admin@buildsetu.com'],
-                    (err) => {
-                        if (err) {
-                            console.error('❌ Update admin error:', err.message);
-                            return;
-                        }
-                        console.log('✅ SUPER_ADMIN password updated');
-                        verifyLogin();
-                    }
-                );
-                return;
-            }
-            
-            console.log('✅ SUPER_ADMIN created successfully!');
-            console.log('   📧 Email: admin@buildsetu.com');
-            console.log('   🔑 Password: Admin@123');
-            console.log('   👤 User ID:', result.insertId);
-            
-            verifyLogin();
-        });
-    });
-}
-
-async function verifyLogin() {
-    console.log('\n🔐 Verifying login works...');
-    
-    // Get the stored hash
-    db.query('SELECT Password FROM Registration WHERE Email = ?', ['admin@buildsetu.com'], async (err, results) => {
-        if (err || results.length === 0) {
-            console.error('❌ Cannot verify: No admin found');
+            console.error('❌ Check admin error:', err.message);
             return;
         }
         
-        const storedHash = results[0].Password;
-        const testPassword = 'Admin@123';
-        
-        try {
-            const isValid = await bcrypt.compare(testPassword, storedHash);
-            console.log(`Password "Admin@123" verification: ${isValid ? '✅ SUCCESS' : '❌ FAILED'}`);
-            
-            if (!isValid) {
-                console.log('⚠️  Password mismatch! Regenerating...');
-                await ensureSuperAdmin();
-            }
-        } catch (error) {
-            console.error('❌ Verification error:', error.message);
+        if (results.length === 0) {
+            // Insert new admin
+            console.log('📝 Creating new SUPER_ADMIN...');
+            insertSuperAdmin(hashedPassword);
+        } else {
+            // Update existing admin password
+            console.log('🔄 Updating existing SUPER_ADMIN password...');
+            updateSuperAdmin(hashedPassword, results[0].id);
         }
     });
+}
+
+function insertSuperAdmin(hashedPassword) {
+    const insertSQL = `
+        INSERT INTO Registration (Username, Email, Password, Role, Status)
+        VALUES (?, ?, ?, 'SUPER_ADMIN', 'APPROVED')
+    `;
+    
+    db.query(insertSQL, ['superadmin', 'admin@buildsetu.com', hashedPassword], (err, result) => {
+        if (err) {
+            console.error('❌ Insert admin error:', err.message);
+            return;
+        }
+        
+        console.log('✅ SUPER_ADMIN created successfully!');
+        console.log('   📧 Email: admin@buildsetu.com');
+        console.log('   🔑 Password: Admin@123');
+        console.log('   👤 User ID:', result.insertId);
+    });
+}
+
+function updateSuperAdmin(hashedPassword, adminId) {
+    db.query(
+        'UPDATE Registration SET Password = ?, Status = "APPROVED", is_active = TRUE WHERE id = ?',
+        [hashedPassword, adminId],
+        (err) => {
+            if (err) {
+                console.error('❌ Update admin error:', err.message);
+                return;
+            }
+            console.log('✅ SUPER_ADMIN password updated');
+            console.log('   📧 Email: admin@buildsetu.com');
+            console.log('   🔑 Password: Admin@123');
+        }
+    );
 }
 
 // ==================== API ENDPOINTS ====================
@@ -192,70 +176,62 @@ app.post('/api/register', async (req, res) => {
         });
     }
     
-    try {
-        // Check if user already exists
-        db.query('SELECT id FROM Registration WHERE Username = ? OR Email = ?', 
-            [username, email], 
-            async (err, results) => {
-                if (err) {
-                    console.error('❌ Database error:', err.message);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Database error'
-                    });
-                }
-                
-                if (results.length > 0) {
-                    console.log('❌ Username or email already exists');
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Username or email already exists'
-                    });
-                }
-                
-                // Hash password
-                console.log('🔐 Hashing password...');
-                const salt = await bcrypt.genSalt(10);
-                const hashedPassword = await bcrypt.hash(password, salt);
-                
-                // Insert new user with PENDING status
-                const insertSQL = `
-                    INSERT INTO Registration (Username, Email, Password, Role, Status)
-                    VALUES (?, ?, ?, ?, 'PENDING')
-                `;
-                
-                db.query(insertSQL, [username, email, hashedPassword, userRole], (err, result) => {
-                    if (err) {
-                        console.error('❌ Insert error:', err.message);
-                        return res.status(500).json({
-                            success: false,
-                            message: 'Failed to register user'
-                        });
-                    }
-                    
-                    console.log('✅ User registered successfully!');
-                    console.log('   User ID:', result.insertId);
-                    console.log('   Status: PENDING (awaiting approval)');
-                    
-                    res.status(201).json({
-                        success: true,
-                        message: 'User registered successfully. Awaiting admin approval.',
-                        userId: result.insertId,
-                        username: username,
-                        email: email,
-                        role: userRole,
-                        status: 'PENDING'
-                    });
+    // Check if user already exists
+    db.query('SELECT id FROM Registration WHERE Username = ? OR Email = ?', 
+        [username, email], 
+        async (err, results) => {
+            if (err) {
+                console.error('❌ Database error:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Database error'
                 });
             }
-        );
-    } catch (error) {
-        console.error('❌ Server error:', error.message);
-        res.status(500).json({
-            success: false,
-            message: 'Server error during registration'
-        });
-    }
+            
+            if (results.length > 0) {
+                console.log('❌ Username or email already exists');
+                return res.status(400).json({
+                    success: false,
+                    message: 'Username or email already exists'
+                });
+            }
+            
+            // Hash password
+            console.log('🔐 Hashing password...');
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+            
+            // Insert new user with PENDING status
+            const insertSQL = `
+                INSERT INTO Registration (Username, Email, Password, Role, Status)
+                VALUES (?, ?, ?, ?, 'PENDING')
+            `;
+            
+            db.query(insertSQL, [username, email, hashedPassword, userRole], (err, result) => {
+                if (err) {
+                    console.error('❌ Insert error:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Failed to register user'
+                    });
+                }
+                
+                console.log('✅ User registered successfully!');
+                console.log('   User ID:', result.insertId);
+                console.log('   Status: PENDING (awaiting approval)');
+                
+                res.status(201).json({
+                    success: true,
+                    message: 'User registered successfully. Awaiting admin approval.',
+                    userId: result.insertId,
+                    username: username,
+                    email: email,
+                    role: userRole,
+                    status: 'PENDING'
+                });
+            });
+        }
+    );
 });
 
 // Login endpoint
@@ -340,7 +316,228 @@ app.post('/api/login', async (req, res) => {
     });
 });
 
-// Start server
+// ==================== ADMIN ENDPOINTS ====================
+
+// Get all users for admin (excluding SUPER_ADMIN)
+app.get('/api/admin/users', (req, res) => {
+    console.log('\n👑 ADMIN: Fetching users for approval...');
+    
+    db.query(`
+        SELECT 
+            id, 
+            Username, 
+            Email, 
+            Role, 
+            Status,
+            is_active,
+            DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
+        FROM Registration 
+        WHERE Role != 'SUPER_ADMIN'
+        ORDER BY 
+            CASE Status 
+                WHEN 'PENDING' THEN 1
+                WHEN 'APPROVED' THEN 2
+                WHEN 'REJECTED' THEN 3
+            END,
+            created_at DESC
+    `, (err, results) => {
+        if (err) {
+            console.error('❌ Get admin users error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        console.log(`✅ Found ${results.length} users for admin`);
+        res.json({ 
+            success: true, 
+            count: results.length,
+            users: results 
+        });
+    });
+});
+
+// Approve/Reject user
+app.put('/api/admin/users/:id/status', (req, res) => {
+    const { id } = req.params;
+    const { status, adminId } = req.body;
+    
+    console.log(`\n👑 ADMIN ACTION ======================`);
+    console.log(`Admin ${adminId} changing user ${id} status to: ${status}`);
+    
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid status. Must be APPROVED or REJECTED'
+        });
+    }
+    
+    if (!adminId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Admin ID is required'
+        });
+    }
+    
+    // Verify admin exists and is SUPER_ADMIN
+    db.query('SELECT Role FROM Registration WHERE id = ?', [adminId], (err, results) => {
+        if (err) {
+            console.error('❌ Verify admin error:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Database error'
+            });
+        }
+        
+        if (results.length === 0 || results[0].Role !== 'SUPER_ADMIN') {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: Only SUPER_ADMIN can perform this action'
+            });
+        }
+        
+        // Update user status
+        db.query(
+            `UPDATE Registration 
+             SET Status = ?, approved_by = ?, updated_at = NOW() 
+             WHERE id = ? AND Role != 'SUPER_ADMIN'`,
+            [status, adminId, id],
+            (err, result) => {
+                if (err) {
+                    console.error('❌ Update error:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Database error'
+                    });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'User not found or cannot modify SUPER_ADMIN'
+                    });
+                }
+                
+                console.log(`✅ User ${id} ${status.toLowerCase()} by admin ${adminId}`);
+                
+                res.json({
+                    success: true,
+                    message: `User ${status.toLowerCase()} successfully`
+                });
+            }
+        );
+    });
+});
+
+// Activate/Deactivate user
+app.put('/api/admin/users/:id/active', (req, res) => {
+    const { id } = req.params;
+    const { is_active, adminId } = req.body;
+    
+    console.log(`\n👑 ADMIN ACTION ======================`);
+    console.log(`Admin ${adminId} setting user ${id} active status to: ${is_active}`);
+    
+    if (typeof is_active !== 'boolean') {
+        return res.status(400).json({
+            success: false,
+            message: 'is_active must be boolean (true/false)'
+        });
+    }
+    
+    if (!adminId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Admin ID is required'
+        });
+    }
+    
+    // Verify admin exists and is SUPER_ADMIN
+    db.query('SELECT Role FROM Registration WHERE id = ?', [adminId], (err, results) => {
+        if (err || results.length === 0 || results[0].Role !== 'SUPER_ADMIN') {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: Only SUPER_ADMIN can perform this action'
+            });
+        }
+        
+        db.query(
+            'UPDATE Registration SET is_active = ?, updated_at = NOW() WHERE id = ?',
+            [is_active, id],
+            (err, result) => {
+                if (err) {
+                    console.error('❌ Update error:', err.message);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Database error'
+                    });
+                }
+                
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'User not found'
+                    });
+                }
+                
+                console.log(`✅ User ${id} ${is_active ? 'activated' : 'deactivated'} by admin ${adminId}`);
+                
+                res.json({
+                    success: true,
+                    message: `User ${is_active ? 'activated' : 'deactivated'} successfully`
+                });
+            }
+        );
+    });
+});
+
+// Get admin dashboard stats
+app.get('/api/admin/stats', (req, res) => {
+    const statsQuery = `
+        SELECT 
+            (SELECT COUNT(*) FROM Registration WHERE Role != 'SUPER_ADMIN') as total_users,
+            (SELECT COUNT(*) FROM Registration WHERE Status = 'APPROVED' AND Role != 'SUPER_ADMIN') as approved_users,
+            (SELECT COUNT(*) FROM Registration WHERE Status = 'PENDING') as pending_users,
+            (SELECT COUNT(*) FROM Registration WHERE Status = 'REJECTED') as rejected_users,
+            (SELECT COUNT(*) FROM Registration WHERE is_active = 1 AND Role != 'SUPER_ADMIN') as active_users
+    `;
+    
+    db.query(statsQuery, (err, results) => {
+        if (err) {
+            console.error('❌ Stats error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        res.json({
+            success: true,
+            stats: results[0]
+        });
+    });
+});
+
+// ==================== ERROR HANDLING ====================
+
+// 404 handler
+app.use('*', (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'Endpoint not found'
+    });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error('❌ Server error:', err.stack);
+    res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+    });
+});
+
+// ==================== START SERVER ====================
 app.listen(PORT, () => {
     console.log('='.repeat(60));
     console.log(`🚀 BuildSetu Server Started!`);
@@ -351,9 +548,21 @@ app.listen(PORT, () => {
     console.log(`   GET  http://localhost:${PORT}/api/users`);
     console.log(`   POST http://localhost:${PORT}/api/register`);
     console.log(`   POST http://localhost:${PORT}/api/login`);
+    console.log(`   GET  http://localhost:${PORT}/api/admin/users`);
+    console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/status`);
+    console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/active`);
+    console.log(`   GET  http://localhost:${PORT}/api/admin/stats`);
     console.log('='.repeat(60));
     console.log('\n👑 Test Credentials:');
     console.log('   📧 Email: admin@buildsetu.com');
     console.log('   🔑 Password: Admin@123');
     console.log('='.repeat(60));
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\n🔄 Shutting down server gracefully...');
+    db.end();
+    console.log('✅ Database connection closed');
+    process.exit(0);
 });
