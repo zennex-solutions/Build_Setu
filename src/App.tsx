@@ -17,6 +17,7 @@ import VariationsPage from "./pages/Variations";
 import ProjectPage from "./pages/ProjectPage";
 import Teams from "./pages/Teams";
 import EquipmentPage from "./pages/Equipment";
+import TaskAssignmentsPage from "./pages/TaskAssignmentsPage";
 
 
 
@@ -42,7 +43,7 @@ export default function App() {
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="variations" element={<VariationsPage />} />
           <Route path="/projects" element={<ProjectPage/>} />
-
+ <Route path="/task-assign" element={<TaskAssignmentsPage/>} />
 <Route path="/teams" element={<Teams />} />.
 
           <Route path="/euipments" element={<EquipmentPage/>} />
