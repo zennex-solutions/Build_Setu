@@ -19,7 +19,7 @@ import App from './App';
 import { registerLicense } from '@syncfusion/ej2-base';
 
 // Register Syncfusion license
-registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
+  registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
 
 const rootElement = document.getElementById('root');
 if (rootElement) {
