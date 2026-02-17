@@ -4,28 +4,33 @@ import Sidebar from "./Sidebar";
 
 interface MainLayoutProps {
   children: ReactNode;
-  role?: string; // user role for sidebar filtering
+  role?: string;
   pageTitle?: string;
   showLogout?: boolean;
+  onLogout?: () => void;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ 
   children, 
   role = "SUPER_ADMIN",
   pageTitle,
-  showLogout = true 
+  showLogout = true,
+  onLogout 
 }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (onLogout) {
+      onLogout();
+    }
     navigate("/", { replace: true });
   };
 
   return (
-    // <div className="min-h-screen flex bg-[var(--bs-secondary)]">
     <div className="h-screen flex bg-[var(--bs-secondary)]">
-
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar role={role} />

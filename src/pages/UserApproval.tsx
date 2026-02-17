@@ -28,24 +28,37 @@ const UserApproval: React.FC = () => {
 
   useEffect(() => {
     // Get current user from localStorage
+    const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setCurrentUser(parsedUser);
-      
-      // Check if user is SUPER_ADMIN
-      if (parsedUser.role !== "SUPER_ADMIN") {
-        setError("Access denied. Only SUPER_ADMIN can access this page.");
-        setLoading(false);
-        return;
-      }
-    } else {
+    
+    if (!token) {
       setError("You must be logged in to access this page.");
       setLoading(false);
       return;
     }
-    
-    fetchUsers();
+
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setCurrentUser(parsedUser);
+        
+        // Check if user is SUPER_ADMIN
+        if (parsedUser.role !== "SUPER_ADMIN") {
+          setError("Access denied. Only SUPER_ADMIN can access this page.");
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch users if authorized
+        fetchUsers();
+      } catch (e) {
+        setError("Failed to parse user data");
+        setLoading(false);
+      }
+    } else {
+      setError("User data not found. Please login again.");
+      setLoading(false);
+    }
   }, []);
 
   const fetchUsers = async () => {
@@ -53,12 +66,34 @@ const UserApproval: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch("http://localhost:5000/api/admin/users");
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      console.log('Fetching users with token:', token.substring(0, 20) + '...');
+      
+      const response = await fetch("http://localhost:5000/api/admin/users", {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`Failed to load users: ${response.status}`);
+        if (response.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          throw new Error('Session expired. Please login again.');
+        }
+        throw new Error(`Failed to load users: ${response.status} - ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('Received data:', data);
       
       if (data.success) {
         setUsers(data.users || []);
@@ -99,10 +134,20 @@ const UserApproval: React.FC = () => {
     if (!confirmed) return;
 
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('No authentication token found. Please login again.');
+        navigate('/');
+        return;
+      }
+
+      console.log(`Updating user ${userId} to status: ${status}`);
+      
       const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/status`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
           status, 
@@ -111,6 +156,7 @@ const UserApproval: React.FC = () => {
       });
 
       const data = await response.json();
+      console.log('Update response:', data);
       
       if (data.success) {
         // Update local state
@@ -145,18 +191,29 @@ const UserApproval: React.FC = () => {
     if (!confirmed) return;
 
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('No authentication token found. Please login again.');
+        navigate('/');
+        return;
+      }
+
+      console.log(`Toggling user ${userId} active status to: ${newStatus}`);
+      
       const response = await fetch(`http://localhost:5000/api/admin/users/${userId}/active`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          is_active: newStatus,
+          is_active: newStatus === 1,
           adminId: currentUser.id 
         }),
       });
 
       const data = await response.json();
+      console.log('Toggle response:', data);
       
       if (data.success) {
         // Update local state
@@ -184,7 +241,7 @@ const UserApproval: React.FC = () => {
     };
     
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${styles[status as keyof typeof styles]}`}>
+      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${styles[status as keyof typeof styles] || "bg-gray-100 text-gray-800 border-gray-200"}`}>
         {status}
       </span>
     );
@@ -209,18 +266,30 @@ const UserApproval: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric"
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const filteredUsers = users.filter(user => {
     if (filter === "ALL") return true;
     return user.Status === filter;
   });
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/');
+  };
 
   if (loading) {
     return (
@@ -235,7 +304,7 @@ const UserApproval: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex items-center">
@@ -245,12 +314,18 @@ const UserApproval: React.FC = () => {
               <h3 className="text-lg font-medium text-red-800">Access Error</h3>
             </div>
             <p className="mt-2 text-red-700">{error}</p>
-            <div className="mt-4">
+            <div className="mt-4 flex space-x-3">
               <button
                 onClick={() => navigate("/login")}
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Go to Login
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+              >
+                Try Again
               </button>
             </div>
           </div>
@@ -289,28 +364,34 @@ const UserApproval: React.FC = () => {
               >
                 Back to Dashboard
               </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+              >
+                Logout
+              </button>
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition">
               <div className="text-sm text-gray-500">Total Users</div>
               <div className="text-2xl font-bold mt-1">{stats.total}</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition">
               <div className="text-sm text-gray-500">Pending</div>
               <div className="text-2xl font-bold mt-1 text-yellow-600">{stats.pending}</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition">
               <div className="text-sm text-gray-500">Approved</div>
               <div className="text-2xl font-bold mt-1 text-green-600">{stats.approved}</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition">
               <div className="text-sm text-gray-500">Rejected</div>
               <div className="text-2xl font-bold mt-1 text-red-600">{stats.rejected}</div>
             </div>
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition">
               <div className="text-sm text-gray-500">Active</div>
               <div className="text-2xl font-bold mt-1 text-blue-600">{stats.active}</div>
             </div>
@@ -320,25 +401,41 @@ const UserApproval: React.FC = () => {
           <div className="flex flex-wrap gap-2 mb-6">
             <button
               onClick={() => setFilter("ALL")}
-              className={`px-4 py-2 rounded-lg ${filter === "ALL" ? "bg-amber-500 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+              className={`px-4 py-2 rounded-lg transition ${
+                filter === "ALL" 
+                  ? "bg-amber-500 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
             >
-              All Users
+              All Users ({stats.total})
             </button>
             <button
               onClick={() => setFilter("PENDING")}
-              className={`px-4 py-2 rounded-lg ${filter === "PENDING" ? "bg-yellow-500 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+              className={`px-4 py-2 rounded-lg transition ${
+                filter === "PENDING" 
+                  ? "bg-yellow-500 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
             >
               Pending ({stats.pending})
             </button>
             <button
               onClick={() => setFilter("APPROVED")}
-              className={`px-4 py-2 rounded-lg ${filter === "APPROVED" ? "bg-green-500 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+              className={`px-4 py-2 rounded-lg transition ${
+                filter === "APPROVED" 
+                  ? "bg-green-500 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
             >
               Approved ({stats.approved})
             </button>
             <button
               onClick={() => setFilter("REJECTED")}
-              className={`px-4 py-2 rounded-lg ${filter === "REJECTED" ? "bg-red-500 text-white" : "bg-white text-gray-700 hover:bg-gray-50"}`}
+              className={`px-4 py-2 rounded-lg transition ${
+                filter === "REJECTED" 
+                  ? "bg-red-500 text-white" 
+                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              }`}
             >
               Rejected ({stats.rejected})
             </button>
@@ -406,7 +503,7 @@ const UserApproval: React.FC = () => {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => toggleUserActiveStatus(user.id, user.is_active)}
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition ${
                             user.is_active === 1
                               ? "bg-green-100 text-green-800 hover:bg-green-200"
                               : "bg-red-100 text-red-800 hover:bg-red-200"
@@ -422,6 +519,7 @@ const UserApproval: React.FC = () => {
                               <button
                                 onClick={() => updateUserStatus(user.id, "APPROVED")}
                                 className="px-3 py-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm font-medium flex items-center transition"
+                                title="Approve user"
                               >
                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -431,6 +529,7 @@ const UserApproval: React.FC = () => {
                               <button
                                 onClick={() => updateUserStatus(user.id, "REJECTED")}
                                 className="px-3 py-1.5 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium flex items-center transition"
+                                title="Reject user"
                               >
                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -441,12 +540,16 @@ const UserApproval: React.FC = () => {
                           )}
                           {user.Status !== "PENDING" && (
                             <div className="space-y-2">
-                              <span className={`text-sm font-medium ${user.Status === "APPROVED" ? "text-green-600" : "text-red-600"}`}>
+                              <span className={`text-sm font-medium ${
+                                user.Status === "APPROVED" ? "text-green-600" : "text-red-600"
+                              }`}>
                                 {user.Status === "APPROVED" ? "✓ Approved" : "✗ Rejected"}
                               </span>
-                              <div className="text-xs text-gray-500">
-                                {user.Status === "APPROVED" && user.is_active === 0 && "User is inactive"}
-                              </div>
+                              {user.Status === "APPROVED" && user.is_active === 0 && (
+                                <div className="text-xs text-gray-500">
+                                  User is inactive - click Active button to activate
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -469,7 +572,7 @@ const UserApproval: React.FC = () => {
             </li>
             <li className="flex items-start">
               <span className="mr-2">•</span>
-              <span><strong>Approved Users:</strong> Can access the system based on their assigned roles and permissions.</span>
+              <span><strong>Approved Users:</strong> Can access the system based on their assigned roles and permissions. They are automatically added to the main users table.</span>
             </li>
             <li className="flex items-start">
               <span className="mr-2">•</span>
@@ -488,6 +591,7 @@ const UserApproval: React.FC = () => {
               <span><strong>Audit Trail:</strong> All approval actions are logged with admin ID and timestamp for accountability.</span>
             </li>
           </ul>
+          
           <div className="mt-4 p-4 bg-white rounded border border-blue-100">
             <h4 className="font-medium text-blue-900 mb-2">Quick Actions:</h4>
             <div className="flex flex-wrap gap-2">
@@ -500,7 +604,7 @@ const UserApproval: React.FC = () => {
                     alert("No pending users at the moment.");
                   }
                 }}
-                className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
+                className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition"
               >
                 Check Pending Users
               </button>
@@ -513,13 +617,13 @@ const UserApproval: React.FC = () => {
                     alert("All approved users are active.");
                   }
                 }}
-                className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200"
+                className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200 transition"
               >
                 Check Inactive Users
               </button>
               <button
                 onClick={fetchUsers}
-                className="px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200"
+                className="px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200 transition"
               >
                 Refresh Data
               </button>
@@ -531,7 +635,7 @@ const UserApproval: React.FC = () => {
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>
             This panel is accessible only to SUPER_ADMIN users. All actions are logged and monitored.
-            Last updated: {new Date().toLocaleDateString()}
+            Last updated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
           </p>
         </div>
       </div>

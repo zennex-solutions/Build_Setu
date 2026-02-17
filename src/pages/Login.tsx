@@ -14,6 +14,8 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', { email, password });
+      
       const response = await fetch("http://localhost:5000/api/login", {
         method: "POST",
         headers: {
@@ -23,13 +25,18 @@ const Login = () => {
       });
 
       const data = await response.json();
+      console.log('Login response:', data);
 
       if (data.success) {
-        // Store user data in localStorage or context
+        // Store user data AND token in localStorage
+        localStorage.setItem("token", data.token); // Make sure your backend returns token
         localStorage.setItem("user", JSON.stringify(data.user));
         
         // Redirect based on role
         switch (data.user.role) {
+          case "SUPER_ADMIN":
+            navigate("/dashboard"); // Redirect to users page for admin
+            break;
           case "PROJECT_MANAGER":
           case "SITE_ENGINEER":
           case "SUPERVISOR":
@@ -40,18 +47,15 @@ const Login = () => {
           case "CLIENT":
             navigate("/overview");
             break;
-          case "SUPER_ADMIN":
-            navigate("/dashboard");
-            break;
           default:
             navigate("/dashboard");
         }
       } else {
-        setError(data.message);
+        setError(data.message || "Login failed");
       }
     } catch (err) {
-      setError("Network error. Please try again.");
       console.error("Login error:", err);
+      setError("Network error. Please check if backend server is running on port 5000.");
     } finally {
       setLoading(false);
     }
@@ -78,7 +82,6 @@ const Login = () => {
                 className="w-5 h-5 text-red-500 mr-2" 
                 fill="currentColor" 
                 viewBox="0 0 20 20"
-                xmlns="http://www.w3.org/2000/svg"
               >
                 <path 
                   fillRule="evenodd" 
@@ -93,8 +96,33 @@ const Login = () => {
                 Please contact the Super Admin or wait for approval notification.
               </p>
             )}
+            {error.includes("Network error") && (
+              <div className="mt-3 text-sm bg-gray-100 p-3 rounded">
+                <p className="font-medium mb-2">🔧 Troubleshooting:</p>
+                <ol className="list-decimal ml-5 space-y-1 text-gray-700">
+                  <li>Open terminal in backend folder</li>
+                  <li>Run: <code className="bg-gray-200 px-1 rounded">node server.js</code></li>
+                  <li>You should see: "🚀 BuildSetu Server Started!"</li>
+                  <li>Refresh this page and try again</li>
+                </ol>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Quick Test Button */}
+        <div className="mb-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              setEmail("admin@buildsetu.com");
+              setPassword("123456");
+            }}
+            className="text-xs text-amber-600 hover:text-amber-800 underline"
+          >
+            Fill Admin Credentials
+          </button>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -152,6 +180,25 @@ const Login = () => {
               Register Now
             </Link>
           </p>
+        </div>
+
+        {/* Test Credentials */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <p className="text-sm font-medium text-gray-700 mb-2">🔑 Test Credentials:</p>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Super Admin:</span>
+              <span className="font-mono">admin@buildsetu.com / 123456</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Project Manager:</span>
+              <span className="font-mono">maria@company.com / password123</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Accountant:</span>
+              <span className="font-mono">david@company.com / password123</span>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}

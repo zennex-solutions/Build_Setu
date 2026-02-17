@@ -78,11 +78,12 @@ const Register = () => {
         }
       }
 
-      if (response.ok && data.success) {
-        setShowPopup(true);
-      } else {
-        setError(data.message || `Registration failed (Status: ${response.status})`);
-      }
+      // In your handleSubmit function, update the success condition:
+if (response.ok && data.success) {
+  setShowPopup(true);
+} else {
+  setError(data.message || `Registration failed (Status: ${response.status})`);
+}
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       console.error("Registration error:", err);
