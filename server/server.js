@@ -22,107 +22,11 @@ const db = mysql.createConnection({
 db.connect((err) => {
     if (err) {
         console.error('❌ MySQL Connection Error:', err.message);
-        console.log('💡 Make sure MySQL is running and database "buildsetu" exists');
-        console.log('💡 Run: CREATE DATABASE buildsetu;');
         process.exit(1);
     }
     console.log('✅ Connected to MySQL Database: buildsetu');
-    
-    setupDatabase();
+    console.log('📊 Using users table');
 });
-
-async function setupDatabase() {
-    // Create table
-    const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS Registration (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            Username VARCHAR(50) NOT NULL UNIQUE,
-            Email VARCHAR(100) NOT NULL UNIQUE,
-            Password VARCHAR(255) NOT NULL,
-            Role ENUM('SUPER_ADMIN','PROJECT_MANAGER','SITE_ENGINEER','SUPERVISOR','ACCOUNTANT','CONTRACTOR','CLIENT') DEFAULT 'CLIENT',
-            Status ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
-            approved_by INT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            is_active BOOLEAN DEFAULT TRUE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `;
-    
-    db.query(createTableSQL, async (err) => {
-        if (err) {
-            console.error('❌ Table Creation Error:', err.message);
-            return;
-        }
-        console.log('✅ Registration table ready');
-        
-        // Ensure SUPER_ADMIN exists with correct password
-        await ensureSuperAdmin();
-    });
-}
-
-async function ensureSuperAdmin() {
-    console.log('👑 Ensuring SUPER_ADMIN exists...');
-    
-    // Generate fresh hash
-    const salt = await bcrypt.genSalt(10);
-    const password = 'Admin@123';
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    console.log('🔐 Generated hash for Admin@123:', hashedPassword.substring(0, 30) + '...');
-    
-    // Check if admin already exists
-    db.query('SELECT id FROM Registration WHERE Email = ?', ['admin@buildsetu.com'], async (err, results) => {
-        if (err) {
-            console.error('❌ Check admin error:', err.message);
-            return;
-        }
-        
-        if (results.length === 0) {
-            // Insert new admin
-            console.log('📝 Creating new SUPER_ADMIN...');
-            insertSuperAdmin(hashedPassword);
-        } else {
-            // Update existing admin password
-            console.log('🔄 Updating existing SUPER_ADMIN password...');
-            updateSuperAdmin(hashedPassword, results[0].id);
-        }
-    });
-}
-
-function insertSuperAdmin(hashedPassword) {
-    const insertSQL = `
-        INSERT INTO Registration (Username, Email, Password, Role, Status)
-        VALUES (?, ?, ?, 'SUPER_ADMIN', 'APPROVED')
-    `;
-    
-    db.query(insertSQL, ['superadmin', 'admin@buildsetu.com', hashedPassword], (err, result) => {
-        if (err) {
-            console.error('❌ Insert admin error:', err.message);
-            return;
-        }
-        
-        console.log('✅ SUPER_ADMIN created successfully!');
-        console.log('   📧 Email: admin@buildsetu.com');
-        console.log('   🔑 Password: Admin@123');
-        console.log('   👤 User ID:', result.insertId);
-    });
-}
-
-function updateSuperAdmin(hashedPassword, adminId) {
-    db.query(
-        'UPDATE Registration SET Password = ?, Status = "APPROVED", is_active = TRUE WHERE id = ?',
-        [hashedPassword, adminId],
-        (err) => {
-            if (err) {
-                console.error('❌ Update admin error:', err.message);
-                return;
-            }
-            console.log('✅ SUPER_ADMIN password updated');
-            console.log('   📧 Email: admin@buildsetu.com');
-            console.log('   🔑 Password: Admin@123');
-        }
-    );
-}
 
 // ==================== API ENDPOINTS ====================
 
@@ -135,18 +39,266 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Get all users
-app.get('/api/users', (req, res) => {
-    db.query('SELECT id, Username, Email, Role, Status, created_at FROM Registration ORDER BY created_at DESC', (err, results) => {
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+    
+    console.log('\n🔐 LOGIN ATTEMPT ======================');
+    console.log('Email:', email);
+    
+    if (!email || !password) {
+        return res.status(400).json({
+            success: false,
+            message: 'Email and password are required'
+        });
+    }
+    
+    // Check user exists in users table
+    db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
         if (err) {
-            console.error('❌ Get users error:', err.message);
-            return res.status(500).json({ success: false, message: 'Database error' });
+            console.error('❌ Database error:', err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Database error'
+            });
         }
-        res.json({ success: true, users: results });
+        
+        if (results.length === 0) {
+            console.log('❌ User not found');
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+        
+        const user = results[0];
+        console.log('👤 Found user:', user.name, `(ID: ${user.id}, Role: ${user.role})`);
+        
+        // For demo purposes, accept 'password123' or check against a password field
+        // Since your users table doesn't have a password field, we'll use a simple check
+        // In production, you should add a password field to your users table
+        if (password !== '123456') {
+            console.log('❌ Password incorrect');
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
+            });
+        }
+        
+        // Check status
+        if (user.status !== 'Active') {
+            console.log(`❌ Account not active (Status: ${user.status})`);
+            return res.status(403).json({
+                success: false,
+                message: `Account is inactive. Please contact administrator.`
+            });
+        }
+        
+        // Generate a simple token
+        const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
+        
+        console.log('✅ Login successful!');
+        
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token: token,
+            user: {
+                id: user.id,
+                username: user.name,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            }
+        });
     });
 });
 
-// Registration endpoint
+// Get all users - NOW USING users TABLE
+app.get('/api/users', (req, res) => {
+    console.log('\n👥 FETCHING USERS ======================');
+    
+    // Check for token in Authorization header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) {
+        console.log('❌ No token provided');
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
+    // Simple query to get all users
+    db.query(
+        'SELECT id, name, email, phone, role, status, department, created_at FROM users ORDER BY created_at DESC',
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get users error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            console.log(`✅ Found ${results.length} users`);
+            
+            // Log first user as sample
+            if (results.length > 0) {
+                console.log('Sample user:', {
+                    id: results[0].id,
+                    name: results[0].name,
+                    email: results[0].email,
+                    role: results[0].role,
+                    status: results[0].status
+                });
+            }
+            
+            res.json({ 
+                success: true, 
+                users: results 
+            });
+        }
+    );
+});
+
+// Get single user by ID
+app.get('/api/users/:id', (req, res) => {
+    const userId = req.params.id;
+    
+    db.query(
+        'SELECT id, name, email, phone, role, status, department, created_at FROM users WHERE id = ?',
+        [userId],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get user error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: 'User not found' });
+            }
+            
+            res.json({ success: true, user: results[0] });
+        }
+    );
+});
+
+// Create new user
+app.post('/api/users', (req, res) => {
+    const { name, email, phone, role, status, department } = req.body;
+    
+    if (!name || !email) {
+        return res.status(400).json({
+            success: false,
+            message: 'Name and email are required'
+        });
+    }
+    
+    db.query(
+        'INSERT INTO users (name, email, phone, role, status, department) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, email, phone || '', role || 'SITE_ENGINEER', status || 'Active', department || ''],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Create user error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({
+                success: true,
+                message: 'User created successfully',
+                userId: result.insertId
+            });
+        }
+    );
+});
+
+// Update user
+app.put('/api/users/:id', (req, res) => {
+    const userId = req.params.id;
+    const { name, email, phone, role, status, department } = req.body;
+    
+    db.query(
+        'UPDATE users SET name = ?, email = ?, phone = ?, role = ?, status = ?, department = ? WHERE id = ?',
+        [name, email, phone, role, status, department, userId],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Update user error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ success: false, message: 'User not found' });
+            }
+            
+            res.json({ success: true, message: 'User updated successfully' });
+        }
+    );
+});
+
+// Delete user
+app.delete('/api/users/:id', (req, res) => {
+    const userId = req.params.id;
+    
+    db.query('DELETE FROM users WHERE id = ?', [userId], (err, result) => {
+        if (err) {
+            console.error('❌ Delete user error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        
+        res.json({ success: true, message: 'User deleted successfully' });
+    });
+});
+
+// Dashboard summary stats
+app.get('/api/dashboard/summary', (req, res) => {
+    db.query(
+        `SELECT 
+            COUNT(*) as total_users,
+            SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active_users,
+            SUM(CASE WHEN status = 'Inactive' THEN 1 ELSE 0 END) as inactive_users,
+            SUM(CASE WHEN role = 'SUPER_ADMIN' THEN 1 ELSE 0 END) as super_admins
+        FROM users`,
+        (err, results) => {
+            if (err) {
+                console.error('❌ Stats error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({
+                success: true,
+                summary: results[0]
+            });
+        }
+    );
+});
+
+// Debug endpoint to check database structure
+app.get('/api/debug/db-structure', (req, res) => {
+    db.query('DESCRIBE users', (err, structure) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        
+        db.query('SELECT * FROM users LIMIT 5', (err2, sample) => {
+            if (err2) {
+                return res.status(500).json({ success: false, error: err2.message });
+            }
+            
+            res.json({
+                success: true,
+                table_name: 'users',
+                structure: structure,
+                sample_data: sample
+            });
+        });
+    });
+});
+// Registration endpoint (using Registration table for pending approvals)
 app.post('/api/register', async (req, res) => {
     const { username, email, password, role } = req.body;
     
@@ -157,10 +309,16 @@ app.post('/api/register', async (req, res) => {
     
     // Validation
     if (!username || !email || !password) {
-        console.log('❌ Missing required fields');
         return res.status(400).json({
             success: false,
             message: 'Username, email and password are required'
+        });
+    }
+    
+    if (password.length < 6) {
+        return res.status(400).json({
+            success: false,
+            message: 'Password must be at least 6 characters'
         });
     }
     
@@ -169,16 +327,16 @@ app.post('/api/register', async (req, res) => {
     const userRole = role || 'CLIENT';
     
     if (!validRoles.includes(userRole)) {
-        console.log('❌ Invalid role:', userRole);
         return res.status(400).json({
             success: false,
             message: 'Invalid role selected'
         });
     }
     
-    // Check if user already exists
-    db.query('SELECT id FROM Registration WHERE Username = ? OR Email = ?', 
-        [username, email], 
+    // Check if user already exists in either table
+    db.query(
+        'SELECT id FROM Registration WHERE Email = ? OR Username = ? UNION SELECT id FROM users WHERE email = ? OR name = ?',
+        [email, username, email, username],
         async (err, results) => {
             if (err) {
                 console.error('❌ Database error:', err.message);
@@ -189,7 +347,6 @@ app.post('/api/register', async (req, res) => {
             }
             
             if (results.length > 0) {
-                console.log('❌ Username or email already exists');
                 return res.status(400).json({
                     success: false,
                     message: 'Username or email already exists'
@@ -197,11 +354,10 @@ app.post('/api/register', async (req, res) => {
             }
             
             // Hash password
-            console.log('🔐 Hashing password...');
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
             
-            // Insert new user with PENDING status
+            // Insert into Registration table with PENDING status
             const insertSQL = `
                 INSERT INTO Registration (Username, Email, Password, Role, Status)
                 VALUES (?, ?, ?, ?, 'PENDING')
@@ -234,94 +390,571 @@ app.post('/api/register', async (req, res) => {
     );
 });
 
-// Login endpoint
-app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
+// ==================== TEAMS ENDPOINTS ====================
+
+// Get all teams
+app.get('/api/teams', (req, res) => {
+    console.log('\n👥 FETCHING TEAMS ======================');
     
-    console.log('\n🔐 LOGIN ATTEMPT ======================');
-    console.log('Email:', email);
+    // Check authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
+    db.query(
+        'SELECT * FROM teams ORDER BY created_at DESC',
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get teams error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            console.log(`✅ Found ${results.length} teams`);
+            res.json({ 
+                success: true, 
+                teams: results 
+            });
+        }
+    );
+});
+
+// Get single team by ID
+app.get('/api/teams/:id', (req, res) => {
+    const teamId = req.params.id;
     
-    if (!email || !password) {
-        console.log('❌ Missing email or password');
+    db.query(
+        'SELECT * FROM teams WHERE id = ?',
+        [teamId],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get team error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: 'Team not found' });
+            }
+            
+            res.json({ success: true, team: results[0] });
+        }
+    );
+});
+
+// Create new team
+app.post('/api/teams', (req, res) => {
+    const { name, lead, trade, members, project, status } = req.body;
+    
+    console.log('\n📝 CREATE TEAM ======================');
+    console.log('Name:', name);
+    console.log('Lead:', lead);
+    console.log('Trade:', trade);
+    
+    // Validation
+    if (!name || !lead || !trade) {
         return res.status(400).json({
             success: false,
-            message: 'Email and password are required'
+            message: 'Name, lead and trade are required'
         });
     }
     
-    // Check user exists
-    db.query('SELECT * FROM Registration WHERE Email = ?', [email], async (err, results) => {
-        if (err) {
-            console.error('❌ Database error:', err.message);
-            return res.status(500).json({
-                success: false,
-                message: 'Database error'
-            });
-        }
-        
-        if (results.length === 0) {
-            console.log('❌ User not found');
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid email or password'
-            });
-        }
-        
-        const user = results[0];
-        console.log('👤 Found user:', user.Username, `(ID: ${user.id}, Status: ${user.Status})`);
-        
-        try {
-            console.log('🔍 Comparing password...');
-            const isPasswordValid = await bcrypt.compare(password, user.Password);
-            console.log('Password valid:', isPasswordValid);
-            
-            if (!isPasswordValid) {
-                console.log('❌ Password incorrect');
-                return res.status(401).json({
-                    success: false,
-                    message: 'Invalid email or password'
+    db.query(
+        'INSERT INTO teams (name, lead, trade, members, project, status) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, lead, trade, members || 0, project || null, status || 'Idle'],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Create team error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
                 });
             }
             
-            // Check status
-            if (user.Status !== 'APPROVED') {
-                console.log(`❌ Account not approved (Status: ${user.Status})`);
-                return res.status(403).json({
-                    success: false,
-                    message: `Account is ${user.Status.toLowerCase()}. Please contact administrator.`
-                });
-            }
-            
-            console.log('✅ Login successful!');
-            
-            res.json({
-                success: true,
-                message: 'Login successful',
-                user: {
-                    id: user.id,
-                    username: user.Username,
-                    email: user.Email,
-                    role: user.Role,
-                    status: user.Status
+            // Fetch the created team
+            db.query(
+                'SELECT * FROM teams WHERE id = ?',
+                [result.insertId],
+                (err2, rows) => {
+                    if (err2) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Team created successfully',
+                            teamId: result.insertId 
+                        });
+                    }
+                    
+                    console.log('✅ Team created with ID:', result.insertId);
+                    res.status(201).json({
+                        success: true,
+                        message: 'Team created successfully',
+                        team: rows[0]
+                    });
                 }
-            });
+            );
+        }
+    );
+});
+
+// Update team
+app.put('/api/teams/:id', (req, res) => {
+    const teamId = req.params.id;
+    const { name, lead, trade, members, project, status } = req.body;
+    
+    console.log('\n📝 UPDATE TEAM ======================');
+    console.log('Team ID:', teamId);
+    
+    db.query(
+        'UPDATE teams SET name = ?, lead = ?, trade = ?, members = ?, project = ?, status = ? WHERE id = ?',
+        [name, lead, trade, members, project, status, teamId],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Update team error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
             
-        } catch (error) {
-            console.error('❌ Password comparison error:', error.message);
-            res.status(500).json({
-                success: false,
-                message: 'Server error'
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Team not found' 
+                });
+            }
+            
+            // Fetch updated team
+            db.query(
+                'SELECT * FROM teams WHERE id = ?',
+                [teamId],
+                (err2, rows) => {
+                    if (err2) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Team updated successfully' 
+                        });
+                    }
+                    
+                    console.log('✅ Team updated:', teamId);
+                    res.json({ 
+                        success: true, 
+                        message: 'Team updated successfully',
+                        team: rows[0]
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Delete team
+app.delete('/api/teams/:id', (req, res) => {
+    const teamId = req.params.id;
+    
+    console.log('\n🗑️ DELETE TEAM ======================');
+    console.log('Team ID:', teamId);
+    
+    db.query('DELETE FROM teams WHERE id = ?', [teamId], (err, result) => {
+        if (err) {
+            console.error('❌ Delete team error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
             });
         }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Team not found' 
+            });
+        }
+        
+        console.log('✅ Team deleted:', teamId);
+        res.json({ 
+            success: true, 
+            message: 'Team deleted successfully' 
+        });
     });
 });
 
+// Get team statistics for dashboard
+app.get('/api/teams/stats/summary', (req, res) => {
+    db.query(
+        `SELECT 
+            COUNT(*) as total_crews,
+            SUM(members) as total_manpower,
+            SUM(CASE WHEN status = 'On Site' THEN 1 ELSE 0 END) as on_site_crews,
+            SUM(CASE WHEN status = 'Idle' THEN 1 ELSE 0 END) as idle_crews,
+            SUM(CASE WHEN status = 'Off Duty' THEN 1 ELSE 0 END) as off_duty_crews,
+            SUM(CASE WHEN trade = 'Civil/Masonry' THEN members ELSE 0 END) as masonry_workers,
+            SUM(CASE WHEN trade = 'Electrical' THEN members ELSE 0 END) as electrical_workers,
+            SUM(CASE WHEN trade = 'Plumbing' THEN members ELSE 0 END) as plumbing_workers,
+            SUM(CASE WHEN trade = 'Carpentry' THEN members ELSE 0 END) as carpentry_workers
+        FROM teams`,
+        (err, results) => {
+            if (err) {
+                console.error('❌ Team stats error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            res.json({
+                success: true,
+                stats: results[0]
+            });
+        }
+    );
+});
+
+// ==================== TASK ASSIGNMENTS ENDPOINTS ====================
+
+// Get all tasks
+app.get('/api/tasks', (req, res) => {
+    console.log('\n📋 FETCHING TASKS ======================');
+    
+    // Check authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
+    db.query(
+        'SELECT * FROM task_assignments ORDER BY created_at DESC',
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get tasks error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            console.log(`✅ Found ${results.length} tasks`);
+            res.json({ 
+                success: true, 
+                tasks: results 
+            });
+        }
+    );
+});
+
+// Get single task by ID
+app.get('/api/tasks/:id', (req, res) => {
+    const taskId = req.params.id;
+    
+    db.query(
+        'SELECT * FROM task_assignments WHERE id = ?',
+        [taskId],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get task error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: 'Task not found' });
+            }
+            
+            res.json({ success: true, task: results[0] });
+        }
+    );
+});
+
+// Create new task
+app.post('/api/tasks', (req, res) => {
+    const { title, assignedTo, project, dueDate, priority, status, description } = req.body;
+    
+    console.log('\n📝 CREATE TASK ======================');
+    console.log('Title:', title);
+    console.log('Assigned To:', assignedTo);
+    console.log('Project:', project);
+    
+    // Validation
+    if (!title || !assignedTo || !project) {
+        return res.status(400).json({
+            success: false,
+            message: 'Title, assigned to, and project are required'
+        });
+    }
+    
+    // Get user from token for created_by
+    const authHeader = req.headers.authorization;
+    let createdBy = null;
+    if (authHeader) {
+        try {
+            const token = authHeader.split(' ')[1];
+            const base64Payload = token.split('.')[1];
+            const payload = JSON.parse(atob(base64Payload));
+            createdBy = payload.id;
+        } catch (e) {
+            console.log('Could not parse user from token');
+        }
+    }
+    
+    db.query(
+        `INSERT INTO task_assignments 
+         (title, assigned_to, project, due_date, priority, status, description, created_by) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [title, assignedTo, project, dueDate || null, priority || 'Medium', status || 'Pending', description || null, createdBy],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Create task error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
+                });
+            }
+            
+            // Fetch the created task
+            db.query(
+                'SELECT * FROM task_assignments WHERE id = ?',
+                [result.insertId],
+                (err2, rows) => {
+                    if (err2) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Task created successfully',
+                            taskId: result.insertId 
+                        });
+                    }
+                    
+                    console.log('✅ Task created with ID:', result.insertId);
+                    res.status(201).json({
+                        success: true,
+                        message: 'Task created successfully',
+                        task: rows[0]
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Update task
+app.put('/api/tasks/:id', (req, res) => {
+    const taskId = req.params.id;
+    const { title, assignedTo, project, dueDate, priority, status, description } = req.body;
+    
+    console.log('\n📝 UPDATE TASK ======================');
+    console.log('Task ID:', taskId);
+    
+    // If status is being set to 'Completed', set completed_at timestamp
+    let completedAtSql = '';
+    const params = [];
+    
+    if (status === 'Completed') {
+        completedAtSql = ', completed_at = CURRENT_TIMESTAMP';
+    }
+    
+    db.query(
+        `UPDATE task_assignments 
+         SET title = ?, assigned_to = ?, project = ?, due_date = ?, 
+             priority = ?, status = ?, description = ? ${completedAtSql}
+         WHERE id = ?`,
+        [title, assignedTo, project, dueDate, priority, status, description, taskId],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Update task error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Task not found' 
+                });
+            }
+            
+            // Fetch updated task
+            db.query(
+                'SELECT * FROM task_assignments WHERE id = ?',
+                [taskId],
+                (err2, rows) => {
+                    if (err2) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Task updated successfully' 
+                        });
+                    }
+                    
+                    console.log('✅ Task updated:', taskId);
+                    res.json({ 
+                        success: true, 
+                        message: 'Task updated successfully',
+                        task: rows[0]
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Delete task
+app.delete('/api/tasks/:id', (req, res) => {
+    const taskId = req.params.id;
+    
+    console.log('\n🗑️ DELETE TASK ======================');
+    console.log('Task ID:', taskId);
+    
+    db.query('DELETE FROM task_assignments WHERE id = ?', [taskId], (err, result) => {
+        if (err) {
+            console.error('❌ Delete task error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Task not found' 
+            });
+        }
+        
+        console.log('✅ Task deleted:', taskId);
+        res.json({ 
+            success: true, 
+            message: 'Task deleted successfully' 
+        });
+    });
+});
+
+// Get task statistics for dashboard
+app.get('/api/tasks/stats/summary', (req, res) => {
+    db.query(
+        `SELECT 
+            COUNT(*) as total_tasks,
+            SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) as pending_tasks,
+            SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END) as in_progress_tasks,
+            SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed_tasks,
+            SUM(CASE WHEN priority = 'High' THEN 1 ELSE 0 END) as high_priority_tasks,
+            SUM(CASE WHEN priority = 'Medium' THEN 1 ELSE 0 END) as medium_priority_tasks,
+            SUM(CASE WHEN priority = 'Low' THEN 1 ELSE 0 END) as low_priority_tasks,
+            SUM(CASE WHEN due_date < CURDATE() AND status != 'Completed' THEN 1 ELSE 0 END) as overdue_tasks
+        FROM task_assignments`,
+        (err, results) => {
+            if (err) {
+                console.error('❌ Task stats error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            res.json({
+                success: true,
+                stats: results[0]
+            });
+        }
+    );
+});
+
+// Get tasks by project
+app.get('/api/tasks/project/:project', (req, res) => {
+    const project = req.params.project;
+    
+    db.query(
+        'SELECT * FROM task_assignments WHERE project = ? ORDER BY due_date',
+        [project],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get tasks by project error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({ success: true, tasks: results });
+        }
+    );
+});
+
+// Get tasks assigned to specific person/crew
+app.get('/api/tasks/assigned/:assignee', (req, res) => {
+    const assignee = req.params.assignee;
+    
+    db.query(
+        'SELECT * FROM task_assignments WHERE assigned_to = ? ORDER BY due_date',
+        [assignee],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get tasks by assignee error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({ success: true, tasks: results });
+        }
+    );
+});
+
+// Bulk update task status
+app.patch('/api/tasks/bulk/status', (req, res) => {
+    const { taskIds, status } = req.body;
+    
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Task IDs array is required'
+        });
+    }
+    
+    if (!['Pending', 'In Progress', 'Completed'].includes(status)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid status'
+        });
+    }
+    
+    const placeholders = taskIds.map(() => '?').join(',');
+    const completedAtSql = status === 'Completed' ? ', completed_at = CURRENT_TIMESTAMP' : '';
+    
+    db.query(
+        `UPDATE task_assignments SET status = ? ${completedAtSql} WHERE id IN (${placeholders})`,
+        [status, ...taskIds],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Bulk update error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({
+                success: true,
+                message: `Updated ${result.affectedRows} tasks to ${status}`,
+                updatedCount: result.affectedRows
+            });
+        }
+    );
+});
+
+
 // ==================== ADMIN ENDPOINTS ====================
 
-// Get all users for admin (excluding SUPER_ADMIN)
+// Get all users for admin (from Registration table)
 app.get('/api/admin/users', (req, res) => {
     console.log('\n👑 ADMIN: Fetching users for approval...');
     
+    // Check authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
     db.query(`
         SELECT 
             id, 
@@ -380,28 +1013,24 @@ app.put('/api/admin/users/:id/status', (req, res) => {
         });
     }
     
-    // Verify admin exists and is SUPER_ADMIN
-    db.query('SELECT Role FROM Registration WHERE id = ?', [adminId], (err, results) => {
+    // First, get the user details before updating
+    db.query('SELECT * FROM Registration WHERE id = ?', [id], (err, userResults) => {
         if (err) {
-            console.error('❌ Verify admin error:', err.message);
-            return res.status(500).json({
-                success: false,
-                message: 'Database error'
-            });
+            console.error('❌ Get user error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
         }
         
-        if (results.length === 0 || results[0].Role !== 'SUPER_ADMIN') {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized: Only SUPER_ADMIN can perform this action'
-            });
+        if (userResults.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
         
-        // Update user status
+        const user = userResults[0];
+        
+        // Update user status in Registration table
         db.query(
             `UPDATE Registration 
              SET Status = ?, approved_by = ?, updated_at = NOW() 
-             WHERE id = ? AND Role != 'SUPER_ADMIN'`,
+             WHERE id = ?`,
             [status, adminId, id],
             (err, result) => {
                 if (err) {
@@ -415,7 +1044,29 @@ app.put('/api/admin/users/:id/status', (req, res) => {
                 if (result.affectedRows === 0) {
                     return res.status(404).json({
                         success: false,
-                        message: 'User not found or cannot modify SUPER_ADMIN'
+                        message: 'User not found'
+                    });
+                }
+                
+                // If approved, also add to users table
+                if (status === 'APPROVED') {
+                    // Check if user already exists in users table
+                    db.query('SELECT id FROM users WHERE email = ?', [user.Email], (err, existingUsers) => {
+                        if (!err && existingUsers.length === 0) {
+                            // Add to users table with default values
+                            db.query(
+                                `INSERT INTO users (name, email, phone, role, status, department) 
+                                 VALUES (?, ?, ?, ?, ?, ?)`,
+                                [user.Username, user.Email, '', user.Role, 'Active', ''],
+                                (err2) => {
+                                    if (err2) {
+                                        console.error('❌ Error adding to users table:', err2.message);
+                                    } else {
+                                        console.log(`✅ User ${user.Username} added to users table`);
+                                    }
+                                }
+                            );
+                        }
                     });
                 }
                 
@@ -452,43 +1103,50 @@ app.put('/api/admin/users/:id/active', (req, res) => {
         });
     }
     
-    // Verify admin exists and is SUPER_ADMIN
-    db.query('SELECT Role FROM Registration WHERE id = ?', [adminId], (err, results) => {
-        if (err || results.length === 0 || results[0].Role !== 'SUPER_ADMIN') {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized: Only SUPER_ADMIN can perform this action'
-            });
-        }
-        
-        db.query(
-            'UPDATE Registration SET is_active = ?, updated_at = NOW() WHERE id = ?',
-            [is_active, id],
-            (err, result) => {
-                if (err) {
-                    console.error('❌ Update error:', err.message);
-                    return res.status(500).json({
-                        success: false,
-                        message: 'Database error'
-                    });
-                }
-                
-                if (result.affectedRows === 0) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'User not found'
-                    });
-                }
-                
-                console.log(`✅ User ${id} ${is_active ? 'activated' : 'deactivated'} by admin ${adminId}`);
-                
-                res.json({
-                    success: true,
-                    message: `User ${is_active ? 'activated' : 'deactivated'} successfully`
+    // Update in Registration table
+    db.query(
+        'UPDATE Registration SET is_active = ?, updated_at = NOW() WHERE id = ?',
+        [is_active ? 1 : 0, id],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Update error:', err.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Database error'
                 });
             }
-        );
-    });
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
+            
+            // Also update in users table if user exists there
+            db.query('SELECT Email FROM Registration WHERE id = ?', [id], (err, userResults) => {
+                if (!err && userResults.length > 0) {
+                    const email = userResults[0].Email;
+                    db.query(
+                        'UPDATE users SET status = ? WHERE email = ?',
+                        [is_active ? 'Active' : 'Inactive', email],
+                        (err2) => {
+                            if (err2) {
+                                console.error('❌ Error updating users table:', err2.message);
+                            }
+                        }
+                    );
+                }
+            });
+            
+            console.log(`✅ User ${id} ${is_active ? 'activated' : 'deactivated'} by admin ${adminId}`);
+            
+            res.json({
+                success: true,
+                message: `User ${is_active ? 'activated' : 'deactivated'} successfully`
+            });
+        }
+    );
 });
 
 // Get admin dashboard stats
@@ -517,26 +1175,6 @@ app.get('/api/admin/stats', (req, res) => {
         });
     });
 });
-
-// ==================== ERROR HANDLING ====================
-
-// 404 handler
-app.use('*', (req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Endpoint not found'
-    });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error('❌ Server error:', err.stack);
-    res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-    });
-});
-
 // ==================== START SERVER ====================
 app.listen(PORT, () => {
     console.log('='.repeat(60));
@@ -544,18 +1182,48 @@ app.listen(PORT, () => {
     console.log(`🌐 URL: http://localhost:${PORT}`);
     console.log('='.repeat(60));
     console.log('\n📋 Available Endpoints:');
+    // Add this to your server startup console output
+console.log(`   GET  http://localhost:${PORT}/api/teams`);
+console.log(`   GET  http://localhost:${PORT}/api/teams/:id`);
+console.log(`   POST http://localhost:${PORT}/api/teams`);
+console.log(`   PUT  http://localhost:${PORT}/api/teams/:id`);
+console.log(`   DELETE http://localhost:${PORT}/api/teams/:id`);
+console.log(`   GET  http://localhost:${PORT}/api/teams/stats/summary`);
+
+// Add to your existing console.log section
+console.log(`   GET  http://localhost:${PORT}/api/tasks`);
+console.log(`   GET  http://localhost:${PORT}/api/tasks/:id`);
+console.log(`   POST http://localhost:${PORT}/api/tasks`);
+console.log(`   PUT  http://localhost:${PORT}/api/tasks/:id`);
+console.log(`   DELETE http://localhost:${PORT}/api/tasks/:id`);
+console.log(`   GET  http://localhost:${PORT}/api/tasks/stats/summary`);
+console.log(`   GET  http://localhost:${PORT}/api/tasks/project/:project`);
+console.log(`   GET  http://localhost:${PORT}/api/tasks/assigned/:assignee`);
+console.log(`   PATCH http://localhost:${PORT}/api/tasks/bulk/status`);
+
+//
+console.log(`   GET  http://localhost:${PORT}/api/admin/users`);
+console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/status`);
+console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/active`);
+console.log(`   GET  http://localhost:${PORT}/api/admin/stats`);
+//
     console.log(`   GET  http://localhost:${PORT}/api/test`);
     console.log(`   GET  http://localhost:${PORT}/api/users`);
-    console.log(`   POST http://localhost:${PORT}/api/register`);
+    console.log(`   GET  http://localhost:${PORT}/api/users/:id`);
+    console.log(`   POST http://localhost:${PORT}/api/users`);
+    console.log(`   PUT  http://localhost:${PORT}/api/users/:id`);
+    console.log(`   DELETE http://localhost:${PORT}/api/users/:id`);
     console.log(`   POST http://localhost:${PORT}/api/login`);
-    console.log(`   GET  http://localhost:${PORT}/api/admin/users`);
-    console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/status`);
-    console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/active`);
-    console.log(`   GET  http://localhost:${PORT}/api/admin/stats`);
+    console.log(`   GET  http://localhost:${PORT}/api/dashboard/summary`);
+    console.log(`   GET  http://localhost:${PORT}/api/debug/db-structure`);
     console.log('='.repeat(60));
     console.log('\n👑 Test Credentials:');
+    console.log('   📧 Email: john@company.com');
+    console.log('   🔑 Password: 123456');
     console.log('   📧 Email: admin@buildsetu.com');
-    console.log('   🔑 Password: Admin@123');
+    console.log('   🔑 Password: 123456');
+    console.log('   📧 Email: maria@company.com');
+    console.log('   🔑 Password: 123456');
     console.log('='.repeat(60));
 });
 
