@@ -25,12 +25,11 @@ const CrudForm: React.FC<CrudFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
-const [formValues, setFormValues] = useState<Record<string, any>>(initialValues);
+  const [formValues, setFormValues] = useState<Record<string, any>>(initialValues);
 
-useEffect(() => {
-  setFormValues(initialValues);
-}, [initialValues]);
-
+  useEffect(() => {
+    setFormValues(initialValues);
+  }, [initialValues]);
 
   const handleChange = (name: string, value: any) => {
     setFormValues((prev) => ({ ...prev, [name]: value }));
@@ -38,7 +37,9 @@ useEffect(() => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit?.(formValues);
+    if (onSubmit) {
+      onSubmit(formValues);
+    }
   };
 
   return (
