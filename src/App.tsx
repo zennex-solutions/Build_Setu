@@ -26,7 +26,7 @@ import TaskAssignmentsPage from "./pages/TaskAssignmentsPage";
 
 export default function App() {
  
-    registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
+    registerLicense('Ngo9BigBOggjGyl/VkR+XU9Ff1RDX3xKf0x/TGpQb19xflBPallYVBYiSV9jS3hTdERlWX1cdHBVRWdcU091XQ==');
 
   return (
     <React.StrictMode>
