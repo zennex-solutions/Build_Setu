@@ -1175,6 +1175,205 @@ app.get('/api/admin/stats', (req, res) => {
         });
     });
 });
+
+// ==================== PROJECTS ENDPOINTS ====================
+
+// Get all projects
+app.get('/api/projects', (req, res) => {
+    console.log('\n🏗️ FETCHING PROJECTS ======================');
+    
+    // Check authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        console.log('❌ No token provided');
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
+    // Simple query to get all projects
+    db.query(
+        'SELECT * FROM projects ORDER BY created_at DESC',
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get projects error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
+                });
+            }
+            
+            console.log(`✅ Found ${results.length} projects`);
+            res.json({ 
+                success: true, 
+                projects: results 
+            });
+        }
+    );
+});
+
+// Get single project by ID
+app.get('/api/projects/:id', (req, res) => {
+    const projectId = req.params.id;
+    
+    db.query(
+        'SELECT * FROM projects WHERE id = ?',
+        [projectId],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get project error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: 'Project not found' });
+            }
+            
+            res.json({ success: true, project: results[0] });
+        }
+    );
+});
+
+// Create new project
+app.post('/api/projects', (req, res) => {
+    const { name, location, manager, taskTime, budget, status, description } = req.body;
+    
+    console.log('\n📝 CREATE PROJECT ======================');
+    console.log('Name:', name);
+    console.log('Location:', location);
+    console.log('Manager:', manager);
+    console.log('Budget:', budget);
+    console.log('Status:', status);
+    
+    // Validation
+    if (!name || !location) {
+        return res.status(400).json({
+            success: false,
+            message: 'Project name and location are required'
+        });
+    }
+    
+    db.query(
+        `INSERT INTO projects (name, location, manager, task_time, budget, status, description) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [name, location, manager || null, taskTime || null, budget || 0, status || 'Planning', description || null],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Create project error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
+                });
+            }
+            
+            console.log('✅ Project created with ID:', result.insertId);
+            res.status(201).json({
+                success: true,
+                message: 'Project created successfully',
+                projectId: result.insertId
+            });
+        }
+    );
+});
+
+// Update project
+app.put('/api/projects/:id', (req, res) => {
+    const projectId = req.params.id;
+    const { name, location, manager, taskTime, budget, status, description } = req.body;
+    
+    console.log('\n📝 UPDATE PROJECT ======================');
+    console.log('Project ID:', projectId);
+    
+    db.query(
+        `UPDATE projects 
+         SET name = ?, location = ?, manager = ?, task_time = ?, 
+             budget = ?, status = ?, description = ?
+         WHERE id = ?`,
+        [name, location, manager, taskTime, budget, status, description, projectId],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Update project error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Project not found' 
+                });
+            }
+            
+            console.log('✅ Project updated:', projectId);
+            res.json({ 
+                success: true, 
+                message: 'Project updated successfully'
+            });
+        }
+    );
+});
+
+// Delete project
+app.delete('/api/projects/:id', (req, res) => {
+    const projectId = req.params.id;
+    
+    console.log('\n🗑️ DELETE PROJECT ======================');
+    console.log('Project ID:', projectId);
+    
+    db.query('DELETE FROM projects WHERE id = ?', [projectId], (err, result) => {
+        if (err) {
+            console.error('❌ Delete project error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Project not found' 
+            });
+        }
+        
+        console.log('✅ Project deleted:', projectId);
+        res.json({ 
+            success: true, 
+            message: 'Project deleted successfully' 
+        });
+    });
+});
+
+// Get project statistics
+app.get('/api/projects/stats/summary', (req, res) => {
+    db.query(
+        `SELECT 
+            COUNT(*) as total_projects,
+            SUM(CASE WHEN status = 'Planning' THEN 1 ELSE 0 END) as planning_projects,
+            SUM(CASE WHEN status = 'On Site' THEN 1 ELSE 0 END) as on_site_projects,
+            SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed_projects,
+            SUM(budget) as total_budget
+        FROM projects`,
+        (err, results) => {
+            if (err) {
+                console.error('❌ Project stats error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            res.json({
+                success: true,
+                stats: results[0]
+            });
+        }
+    );
+});
+
 // ==================== START SERVER ====================
 app.listen(PORT, () => {
     console.log('='.repeat(60));
@@ -1207,6 +1406,14 @@ console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/status`);
 console.log(`   PUT  http://localhost:${PORT}/api/admin/users/:id/active`);
 console.log(`   GET  http://localhost:${PORT}/api/admin/stats`);
 //
+// Add this to your existing console.log section
+console.log(`   GET  http://localhost:${PORT}/api/projects`);
+console.log(`   GET  http://localhost:${PORT}/api/projects/:id`);
+console.log(`   POST http://localhost:${PORT}/api/projects`);
+console.log(`   PUT  http://localhost:${PORT}/api/projects/:id`);
+console.log(`   DELETE http://localhost:${PORT}/api/projects/:id`);
+console.log(`   GET  http://localhost:${PORT}/api/projects/stats/summary`);
+
     console.log(`   GET  http://localhost:${PORT}/api/test`);
     console.log(`   GET  http://localhost:${PORT}/api/users`);
     console.log(`   GET  http://localhost:${PORT}/api/users/:id`);
