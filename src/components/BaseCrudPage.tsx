@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import CrudForm, { type Field } from "./CrudForm";
 import { GridComponent, ColumnsDirective, ColumnDirective, Page, Sort, Filter, Inject, ExcelExport, PdfExport, Group } from "@syncfusion/ej2-react-grids";
 import { useRef } from "react";
@@ -30,7 +30,7 @@ export interface CrudPageProps {
   onAdd?: (values: any) => Promise<any> | any;
   onEdit?: (values: any) => Promise<any> | any;
   onDelete?: (id: number) => Promise<any> | any;
-  onView?: (item: any) => any; // Add onView callback
+  onView?: (item: any) => any;
 }
 
 const BaseCrudPage: React.FC<CrudPageProps> = ({
@@ -55,6 +55,19 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
   const [selectedForDelete, setSelectedForDelete] = useState<any>(null);
   const [searchText, setSearchText] = useState('');
 
+  // Log initial data on mount
+  useEffect(() => {
+    console.log('BaseCrudPage mounted with initialData:', initialData);
+  }, []);
+
+  // IMPORTANT: Sync internal data when initialData changes from parent
+  useEffect(() => {
+    console.log('BaseCrudPage: initialData changed!', initialData);
+    console.log('Previous data:', data);
+    console.log('New data:', initialData);
+    setData(initialData);
+  }, [initialData]);
+
   const getFormTitle = () => {
     const action = mode === 'add' ? 'Add' : mode === 'edit' ? 'Edit' : 'View';
     return `${action} ${title}`;
@@ -66,7 +79,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
     <div className="flex justify-center gap-2">
       <button
         onClick={() => { 
-          // Transform data for view mode if onView callback exists
+          console.log('View clicked for:', rowData);
           let itemToView = rowData;
           if (onView) {
             itemToView = onView(rowData);
@@ -81,7 +94,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
       </button>
       <button
         onClick={() => { 
-          // Transform data for edit mode if onView callback exists
+          console.log('Edit clicked for:', rowData);
           let itemToEdit = rowData;
           if (onView) {
             itemToEdit = onView(rowData);
@@ -96,6 +109,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
       </button>
       <button
         onClick={() => { 
+          console.log('Delete clicked for:', rowData);
           setSelectedForDelete(rowData); 
           setDeleteDialogOpen(true); 
         }}
@@ -107,25 +121,29 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
   );
 
   const handleSubmit = async (values: any) => {
+    console.log('Form submitted with values:', values);
+    console.log('Mode:', mode);
+    
     try {
       let result;
       
       if (mode === 'add') {
-        const newItem = { ...values, id: Date.now() };
-        setData(prev => [...prev, newItem]);
+        console.log('Calling onAdd with values:', values);
         result = await onAdd?.(values);
+        console.log('onAdd result:', result);
       } else if (mode === 'edit' && selectedItem) {
-        const updatedItem = { ...selectedItem, ...values };
-        setData(prev => prev.map(item => 
-          item.id === selectedItem.id ? updatedItem : item
-        ));
+        console.log('Calling onEdit with values:', values);
         result = await onEdit?.(values);
+        console.log('onEdit result:', result);
       }
       
       // If the API call was successful, close the dialog
       if (result?.success !== false) {
+        console.log('Closing dialog after successful operation');
         setDialogOpen(false);
         setSelectedItem(null);
+      } else {
+        console.log('Operation failed, keeping dialog open');
       }
     } catch (error) {
       console.error('Error in form submission:', error);
@@ -140,9 +158,10 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
 
   const handleDelete = async () => {
     if (selectedForDelete) {
+      console.log('Deleting item:', selectedForDelete);
       try {
-        setData(prev => prev.filter(item => item.id !== selectedForDelete.id));
         await onDelete?.(selectedForDelete.id);
+        console.log('Delete successful');
         setDeleteDialogOpen(false);
         setSelectedForDelete(null);
       } catch (error) {
@@ -167,6 +186,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
             <div className="flex gap-3">
               <button
                 onClick={() => {
+                  console.log('Add button clicked');
                   setSelectedItem(null);
                   setMode('add');
                   setDialogOpen(true);
@@ -283,7 +303,6 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           onClick={(e) => {
-            // Close only if clicking the backdrop
             if (e.target === e.currentTarget) {
               handleCancel();
             }
@@ -291,18 +310,16 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
         >
           <div className="bg-white rounded-lg w-3/4 max-w-4xl max-h-[90vh] overflow-auto">
             <div className="relative p-4 border-b bg-[var(--bs-primary)] text-white sticky top-0 flex items-center">
-  {/* Push the title to center while leaving space for close button */}
-  <div className="flex-1 text-center">
-    <h2 className="text-xl font-semibold text-white">{getFormTitle()}</h2>
-  </div>
-
-  <button
-    onClick={handleCancel}
-    className="text-white text-2xl px-2 focus:outline-none"
-  >
-    ×
-  </button>
-</div>
+              <div className="flex-1 text-center">
+                <h2 className="text-xl font-semibold text-white">{getFormTitle()}</h2>
+              </div>
+              <button
+                onClick={handleCancel}
+                className="text-white text-2xl px-2 focus:outline-none"
+              >
+                ×
+              </button>
+            </div>
 
             <div className="p-4">
               <CrudForm

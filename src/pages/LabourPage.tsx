@@ -145,7 +145,7 @@ const getAuthHeaders = () => {
 };
 
 // =====================
-// Summary Cards Component - FIXED to handle both camelCase and snake_case
+// Summary Cards Component
 // =====================
 const LabourSummaryCards = ({ labour }: { labour: any[] }) => {
   // Helper function to get value from either camelCase or snake_case property
@@ -234,6 +234,7 @@ const LabourPage = () => {
   const fetchLabour = async () => {
     try {
       setLoading(true);
+      console.log('Fetching labour data...');
       const response = await fetch(`${API_BASE}/labour`, {
         headers: getAuthHeaders(),
       });
@@ -243,7 +244,7 @@ const LabourPage = () => {
       }
       
       const data = await response.json();
-      console.log('Fetched labour data:', data.labour); // Debug log
+      console.log('Fetched labour data:', data.labour);
       setLabourData(data.labour || []);
       setError(null);
     } catch (err) {
@@ -271,7 +272,9 @@ const LabourPage = () => {
         throw new Error(error.message || 'Failed to add labour');
       }
       
+      console.log('Add successful, refreshing data...');
       await fetchLabour(); // Refresh the list
+      console.log('Data refreshed, new labourData:', labourData);
       return { success: true };
     } catch (err: any) {
       console.error('Error adding labour:', err);
@@ -297,7 +300,9 @@ const LabourPage = () => {
         throw new Error(error.message || 'Failed to update labour');
       }
       
+      console.log('Edit successful, refreshing data...');
       await fetchLabour(); // Refresh the list
+      console.log('Data refreshed, new labourData:', labourData);
       return { success: true };
     } catch (err: any) {
       console.error('Error updating labour:', err);
@@ -309,6 +314,7 @@ const LabourPage = () => {
   // Handle delete labour
   const handleDelete = async (id: number) => {
     try {
+      console.log('Deleting labour with id:', id);
       const response = await fetch(`${API_BASE}/labour/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
@@ -318,7 +324,9 @@ const LabourPage = () => {
         throw new Error('Failed to delete labour');
       }
       
+      console.log('Delete successful, refreshing data...');
       await fetchLabour(); // Refresh the list
+      console.log('Data refreshed, new labourData:', labourData);
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting labour:', err);
@@ -329,7 +337,10 @@ const LabourPage = () => {
 
   // Handle view labour - Transform DB data to form format
   const handleView = (item: any) => {
-    return mapDbToForm(item);
+    console.log('Viewing item:', item);
+    const transformed = mapDbToForm(item);
+    console.log('Transformed for view:', transformed);
+    return transformed;
   };
 
   // Load data on component mount
@@ -356,6 +367,8 @@ const LabourPage = () => {
       </MainLayout>
     );
   }
+
+  console.log('Rendering LabourPage with labourData:', labourData);
 
   return (
     <MainLayout
