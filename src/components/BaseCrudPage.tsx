@@ -290,15 +290,20 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
           }}
         >
           <div className="bg-white rounded-lg w-3/4 max-w-4xl max-h-[90vh] overflow-auto">
-            <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-              <h2 className="text-xl font-semibold">{getFormTitle()}</h2>
-              <button 
-                onClick={handleCancel}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
-              >
-                ×
-              </button>
-            </div>
+            <div className="relative p-4 border-b bg-[var(--bs-primary)] text-white sticky top-0 flex items-center">
+  {/* Push the title to center while leaving space for close button */}
+  <div className="flex-1 text-center">
+    <h2 className="text-xl font-semibold text-white">{getFormTitle()}</h2>
+  </div>
+
+  <button
+    onClick={handleCancel}
+    className="text-white text-2xl px-2 focus:outline-none"
+  >
+    ×
+  </button>
+</div>
+
             <div className="p-4">
               <CrudForm
                 mode={mode}
