@@ -8,6 +8,7 @@ export interface Field {
   type: FieldType;
   options?: string[];
   spanFull?: boolean;
+  required?: boolean;
 }
 
 export interface CrudFormProps {
@@ -54,9 +55,13 @@ const CrudForm: React.FC<CrudFormProps> = ({
               key={field.name} 
               className={field.spanFull || field.type === 'textarea' ? "md:col-span-2" : ""}
             >
-              <label className="block mb-2.5 font-medium text-gray-700 text-sm md:text-base">
-                {field.label}
-              </label>
+           <label className="block mb-2.5 font-medium text-gray-700 text-sm md:text-base">
+  {field.label}
+  {field.required && !formValues[field.name] && (
+    <span className="text-red-500 ml-1">*</span>
+  )}
+</label>
+
               
               {field.type === 'text' || field.type === 'number' || field.type === 'date' ? (
                 <input
@@ -64,6 +69,7 @@ const CrudForm: React.FC<CrudFormProps> = ({
                   value={formValues[field.name] || ''}
                   onChange={(e) => handleChange(field.name, e.target.value)}
                   disabled={mode === 'view'}
+                  required={field.required}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bs-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               ) : field.type === 'checkbox' ? (
@@ -73,6 +79,7 @@ const CrudForm: React.FC<CrudFormProps> = ({
                     checked={!!formValues[field.name]}
                     onChange={(e) => handleChange(field.name, e.target.checked)}
                     disabled={mode === 'view'}
+                    required={field.required}
                     className="h-5 w-5 text-[var(--bs-primary)] rounded focus:ring-[var(--bs-primary)] disabled:opacity-50"
                   />
                   {mode === 'view' && (
@@ -87,6 +94,7 @@ const CrudForm: React.FC<CrudFormProps> = ({
                     value={formValues[field.name] || ''}
                     onChange={(e) => handleChange(field.name, e.target.value)}
                     disabled={mode === 'view'}
+                     required={field.required}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bs-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none bg-white"
                   >
                     <option value="">Select {field.label}</option>
@@ -108,6 +116,7 @@ const CrudForm: React.FC<CrudFormProps> = ({
                   onChange={(e) => handleChange(field.name, e.target.value)}
                   disabled={mode === 'view'}
                   rows={field.spanFull ? 5 : 3}
+                   required={field.required}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bs-primary)] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
                 />
               ) : null}

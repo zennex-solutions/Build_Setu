@@ -370,14 +370,15 @@ import MainLayout from "../components/MainLayout";
 // Material Fields (Full Form)
 // =====================
 const materialFields: Field[] = [
-  { name: "code", label: "Material Code", type: "text" },
-  { name: "name", label: "Material Name", type: "text" },
+  { name: "code", label: "Material Code", type: "text" ,required : true},
+  { name: "name", label: "Material Name", type: "text" ,required : true },
 
   {
     name: "category",
     label: "Category",
     type: "select",
     options: ["Structural", "Finishing", "Plumbing", "Electrical", "Hardware", "Other"],
+    required : true
   },
 
   {
@@ -385,14 +386,15 @@ const materialFields: Field[] = [
     label: "Unit of Measure",
     type: "select",
     options: ["kg", "m", "m²", "m³", "pcs", "L", "bag", "roll", "set"],
+    required : true
   },
 
   { name: "unitPrice", label: "Unit Price ($)", type: "number" },
-  { name: "quantity", label: "Current Stock", type: "number" },
+  { name: "quantity", label: "Current Stock", type: "number" ,required : true},
   { name: "minQuantity", label: "Minimum Stock Level", type: "number" },
   { name: "maxQuantity", label: "Maximum Stock Level", type: "number" },
 
-  { name: "supplier", label: "Supplier", type: "text" },
+  { name: "supplier", label: "Supplier", type: "text",required : true },
   { name: "supplierContact", label: "Supplier Contact", type: "text" },
   { name: "location", label: "Storage Location", type: "text" },
   { name: "description", label: "Description", type: "textarea" },

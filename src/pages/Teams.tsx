@@ -9,13 +9,13 @@ import teamsApi from '../services/teamsApi';
 // Team Fields
 // =====================
 const teamFields: Field[] = [
-  { name: "name", label: "Crew Name", type: "text" },
-  { name: "lead", label: "Team Lead", type: "text" },
+  { name: "name", label: "Crew Name", type: "text" ,required : true},
+  { name: "lead", label: "Team Lead", type: "text" ,required : true},
   {
     name: "trade",
     label: "Trade",
     type: "select",
-    options: ["Civil/Masonry", "Electrical", "Plumbing", "Carpentry"],
+    options: ["Civil/Masonry", "Electrical", "Plumbing", "Carpentry"], required : true
   },
   { name: "members", label: "No. of Workers", type: "number" },
   {
@@ -23,6 +23,7 @@ const teamFields: Field[] = [
     label: "Assigned Project",
     type: "select",
     options: ["Alpha Tower", "Skyline Villa", "Main Road Bridge"],
+    required : true
   },
   {
     name: "status",
