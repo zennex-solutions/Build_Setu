@@ -333,11 +333,13 @@ const variationFields: Field[] = [
     label: "Project",
     type: "select",
     options: ["Project Alpha", "Project Beta", "Project Gamma"],
+    required : true
   },
   {
     name: "amount",
     label: "Variation Amount ($)",
     type: "number",
+    required : true
   },
   {
     name: "description",
@@ -348,17 +350,20 @@ const variationFields: Field[] = [
     name: "date",
     label: "Request Date",
     type: "text",
+    required : true
   },
   {
     name: "status",
     label: "Status",
     type: "select",
     options: ["Requested", "Approved", "Rejected"],
+    required : true
   },
   {
     name: "requestedBy",
     label: "Requested By",
     type: "text",
+    required : true
   },
 ];
 

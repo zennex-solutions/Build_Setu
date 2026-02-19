@@ -302,17 +302,18 @@ import MainLayout from "../components/MainLayout";
 // Supplier Fields
 // =====================
 const supplierFields: Field[] = [
-  { name: "code", label: "Supplier Code", type: "text" },
-  { name: "name", label: "Supplier Name", type: "text" },
-  { name: "contactPerson", label: "Contact Person", type: "text" },
+  { name: "code", label: "Supplier Code", type: "text" ,required : true},
+  { name: "name", label: "Supplier Name", type: "text" ,required : true},
+  { name: "contactPerson", label: "Contact Person", type: "text" ,required : true },
   { name: "email", label: "Email", type: "text" },
-  { name: "phone", label: "Phone Number", type: "text" },
+  { name: "phone", label: "Phone Number", type: "text" ,required : true},
   { name: "address", label: "Address", type: "textarea" },
   {
     name: "category",
     label: "Supplier Category",
     type: "select",
     options: ["Material", "Equipment", "Services", "Subcontractor", "Other"],
+    required : true
   },
   { name: "rating", label: "Rating (1–5)", type: "number" },
   { name: "isActive", label: "Active", type: "checkbox" },

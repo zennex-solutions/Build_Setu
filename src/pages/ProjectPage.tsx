@@ -9,16 +9,17 @@ import projectsApi from '../services/projectsApi';
 // Project Form Fields
 // =====================
 const projectFields: Field[] = [
-  { name: "name", label: "Project Name", type: "text" },
-  { name: "location", label: "Site Location", type: "text" },
+  { name: "name", label: "Project Name", type: "text" ,required : true},
+  { name: "location", label: "Site Location", type: "text" ,required : true },
   {
     name: "manager",
     label: "Assigned Manager",
     type: "select",
     options: ["Ali Khan", "Sarah Ahmed", "John Smith", "Unassigned"],
+    required : true
   },
   { name: "taskTime", label: "Site Start Time", type: "text" },
-  { name: "budget", label: "Budget ($)", type: "number" },
+  { name: "budget", label: "Budget ($)", type: "number" ,required : true},
   {
     name: "status",
     label: "Status",

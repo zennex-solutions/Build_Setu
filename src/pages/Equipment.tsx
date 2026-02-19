@@ -10,6 +10,7 @@ const equipmentFields: Field[] = [
      name: "name",
     label: "Equipment Name",
      type: "text",
+     required : true
   },
    {
      name: "category",
@@ -23,17 +24,20 @@ const equipmentFields: Field[] = [
        "Power Tools",
        "Other",
      ],
+     required : true
    },
    {
      name: "quantity",
      label: "Quantity",
      type: "number",
+     required : true
    },
    {
      name: "ownershipType",
      label: "Ownership Type",
      type: "select",
      options: ["Owned", "Rental", "Lease"],
+     required : true
    },
    {
      name: "rateType",
@@ -45,6 +49,7 @@ const equipmentFields: Field[] = [
      name: "price",
      label: "Unit Price / Rate ($)",
      type: "number",
+     required : true
    },
    {
      name: "status",
