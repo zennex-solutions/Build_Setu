@@ -27,10 +27,10 @@ export interface CrudPageProps {
   statusTemplate?: (props: any) => React.ReactNode;
   actionTemplate?: (props: any) => React.ReactNode;
 
-  onAdd?: (values: any) => any;
-  onEdit?: (values: any) => any;
-  onDelete?: (id: number) => void;
-  onView?: (item: any) => void;
+  onAdd?: (values: any) => Promise<any> | any;
+  onEdit?: (values: any) => Promise<any> | any;
+  onDelete?: (id: number) => Promise<any> | any;
+  onView?: (item: any) => any; // Add onView callback
 }
 
 const BaseCrudPage: React.FC<CrudPageProps> = ({
@@ -45,6 +45,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
   onAdd,
   onEdit,
   onDelete,
+  onView,
 }) => {
   const [data, setData] = useState(initialData);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -65,21 +66,31 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
     <div className="flex justify-center gap-2">
       <button
         onClick={() => { 
-          setSelectedItem(rowData); 
+          // Transform data for view mode if onView callback exists
+          let itemToView = rowData;
+          if (onView) {
+            itemToView = onView(rowData);
+          }
+          setSelectedItem(itemToView); 
           setMode("view"); 
           setDialogOpen(true); 
         }}
-        className="text-blue-600 text-xs"
+        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
       >
         View
       </button>
       <button
         onClick={() => { 
-          setSelectedItem(rowData); 
+          // Transform data for edit mode if onView callback exists
+          let itemToEdit = rowData;
+          if (onView) {
+            itemToEdit = onView(rowData);
+          }
+          setSelectedItem(itemToEdit); 
           setMode("edit"); 
           setDialogOpen(true); 
         }}
-        className="text-green-600 text-xs"
+        className="text-green-600 hover:text-green-800 text-xs font-medium"
       >
         Edit
       </button>
@@ -88,27 +99,37 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
           setSelectedForDelete(rowData); 
           setDeleteDialogOpen(true); 
         }}
-        className="text-red-600 text-xs"
+        className="text-red-600 hover:text-red-800 text-xs font-medium"
       >
         Delete
       </button>
     </div>
   );
 
-  const handleSubmit = (values: any) => {
-    if (mode === 'add') {
-      const newItem = { ...values, id: Date.now() };
-      setData(prev => [...prev, newItem]);
-      onAdd?.(newItem);
-    } else if (mode === 'edit' && selectedItem) {
-      const updatedItem = { ...selectedItem, ...values };
-      setData(prev => prev.map(item => 
-        item.id === selectedItem.id ? updatedItem : item
-      ));
-      onEdit?.(updatedItem);
+  const handleSubmit = async (values: any) => {
+    try {
+      let result;
+      
+      if (mode === 'add') {
+        const newItem = { ...values, id: Date.now() };
+        setData(prev => [...prev, newItem]);
+        result = await onAdd?.(values);
+      } else if (mode === 'edit' && selectedItem) {
+        const updatedItem = { ...selectedItem, ...values };
+        setData(prev => prev.map(item => 
+          item.id === selectedItem.id ? updatedItem : item
+        ));
+        result = await onEdit?.(values);
+      }
+      
+      // If the API call was successful, close the dialog
+      if (result?.success !== false) {
+        setDialogOpen(false);
+        setSelectedItem(null);
+      }
+    } catch (error) {
+      console.error('Error in form submission:', error);
     }
-    setDialogOpen(false);
-    setSelectedItem(null);
   };
 
   const handleCancel = () => {
@@ -117,12 +138,16 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
     setSelectedItem(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedForDelete) {
-      setData(prev => prev.filter(item => item.id !== selectedForDelete.id));
-      onDelete?.(selectedForDelete.id);
-      setDeleteDialogOpen(false);
-      setSelectedForDelete(null);
+      try {
+        setData(prev => prev.filter(item => item.id !== selectedForDelete.id));
+        await onDelete?.(selectedForDelete.id);
+        setDeleteDialogOpen(false);
+        setSelectedForDelete(null);
+      } catch (error) {
+        console.error('Error deleting item:', error);
+      }
     }
   };
 
@@ -146,21 +171,21 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
                   setMode('add');
                   setDialogOpen(true);
                 }}
-                className="bg-[var(--bs-primary)] hover:bg-[#162b4a] text-white px-4 py-2 rounded-lg"
+                className="bg-[var(--bs-primary)] hover:bg-[#162b4a] text-white px-4 py-2 rounded-lg transition-colors"
               >
-                + Add
+                + Add {title}
               </button>
 
               <button
                 onClick={() => gridRef?.current?.excelExport()}
-                className="border px-4 py-2 rounded-lg hover:bg-gray-50"
+                className="border px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Export
               </button>
 
               <button
                 onClick={() => gridRef?.current?.print()}
-                className="border px-4 py-2 rounded-lg hover:bg-gray-50"
+                className="border px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Print
               </button>
@@ -174,7 +199,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
                 setSearchText(e.target.value);
                 gridRef.current?.search(e.target.value);
               }}
-              className="border px-3 py-2 rounded-lg w-64"
+              className="border px-3 py-2 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-[var(--bs-primary)] focus:border-transparent"
             />
           </div>
         </div>
@@ -265,7 +290,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
           }}
         >
           <div className="bg-white rounded-lg w-3/4 max-w-4xl max-h-[90vh] overflow-auto">
-            <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
+            <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
               <h2 className="text-xl font-semibold">{getFormTitle()}</h2>
               <button 
                 onClick={handleCancel}
@@ -305,7 +330,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
             </p>
             <div className="flex justify-end gap-3">
               <button
-                className="px-4 py-2 border rounded hover:bg-gray-50"
+                className="px-4 py-2 border rounded hover:bg-gray-50 transition-colors"
                 onClick={() => {
                   setDeleteDialogOpen(false);
                   setSelectedForDelete(null);
@@ -315,7 +340,7 @@ const BaseCrudPage: React.FC<CrudPageProps> = ({
                 Cancel
               </button>
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                 onClick={handleDelete}
                 type="button"
               >

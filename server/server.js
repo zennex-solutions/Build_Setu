@@ -1374,6 +1374,389 @@ app.get('/api/projects/stats/summary', (req, res) => {
     );
 });
 
+// ==================== LABOUR ENDPOINTS ====================
+
+// Get all labour
+app.get('/api/labour', (req, res) => {
+    console.log('\n👷 FETCHING LABOUR ======================');
+    
+    // Check authentication
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        console.log('❌ No token provided');
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
+    db.query(
+        'SELECT * FROM labour ORDER BY created_at DESC',
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get labour error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
+                });
+            }
+            
+            console.log(`✅ Found ${results.length} labour records`);
+            res.json({ 
+                success: true, 
+                labour: results 
+            });
+        }
+    );
+});
+
+// Get single labour by ID
+app.get('/api/labour/:id', (req, res) => {
+    const labourId = req.params.id;
+    
+    db.query(
+        'SELECT * FROM labour WHERE id = ?',
+        [labourId],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get labour error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({ success: false, message: 'Labour not found' });
+            }
+            
+            res.json({ success: true, labour: results[0] });
+        }
+    );
+});
+
+// Create new labour
+app.post('/api/labour', (req, res) => {
+    const { 
+        labourId, name, contactNumber, email, category, trade, 
+        dailyRate, contractType, status, assignedProject, address, notes 
+    } = req.body;
+    
+    console.log('\n📝 CREATE LABOUR ======================');
+    console.log('Labour ID:', labourId);
+    console.log('Name:', name);
+    console.log('Trade:', trade);
+    
+    // Validation
+    if (!labourId || !name) {
+        return res.status(400).json({
+            success: false,
+            message: 'Labour ID and name are required'
+        });
+    }
+    
+    // Get user from token for created_by
+    const authHeader = req.headers.authorization;
+    let createdBy = null;
+    if (authHeader) {
+        try {
+            const token = authHeader.split(' ')[1];
+            const base64Payload = token.split('.')[1];
+            const payload = JSON.parse(atob(base64Payload));
+            createdBy = payload.id;
+        } catch (e) {
+            console.log('Could not parse user from token');
+        }
+    }
+    
+    db.query(
+        `INSERT INTO labour (
+            labour_id, name, contact_number, email, category, trade, 
+            daily_rate, contract_type, status, assigned_project, address, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+            labourId, name, contactNumber || null, email || null, 
+            category || 'Semi-skilled', trade || 'Helper', 
+            dailyRate || null, contractType || 'Daily', status || 'Active', 
+            assignedProject || null, address || null, notes || null, createdBy
+        ],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Create labour error:', err.message);
+                
+                // Check for duplicate labour_id
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Labour ID already exists' 
+                    });
+                }
+                
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
+                });
+            }
+            
+            // Fetch the created labour
+            db.query(
+                'SELECT * FROM labour WHERE id = ?',
+                [result.insertId],
+                (err2, rows) => {
+                    if (err2) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Labour created successfully',
+                            labourId: result.insertId 
+                        });
+                    }
+                    
+                    console.log('✅ Labour created with ID:', result.insertId);
+                    res.status(201).json({
+                        success: true,
+                        message: 'Labour created successfully',
+                        labour: rows[0]
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Update labour
+app.put('/api/labour/:id', (req, res) => {
+    const labourId = req.params.id;
+    const { 
+        labourId: newLabourId, name, contactNumber, email, category, trade, 
+        dailyRate, contractType, status, assignedProject, address, notes 
+    } = req.body;
+    
+    console.log('\n📝 UPDATE LABOUR ======================');
+    console.log('Labour Record ID:', labourId);
+    
+    db.query(
+        `UPDATE labour 
+         SET labour_id = ?, name = ?, contact_number = ?, email = ?, 
+             category = ?, trade = ?, daily_rate = ?, contract_type = ?, 
+             status = ?, assigned_project = ?, address = ?, notes = ?
+         WHERE id = ?`,
+        [
+            newLabourId, name, contactNumber, email, category, trade, 
+            dailyRate, contractType, status, assignedProject, address, notes, 
+            labourId
+        ],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Update labour error:', err.message);
+                
+                // Check for duplicate labour_id
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: 'Labour ID already exists' 
+                    });
+                }
+                
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Labour not found' 
+                });
+            }
+            
+            // Fetch updated labour
+            db.query(
+                'SELECT * FROM labour WHERE id = ?',
+                [labourId],
+                (err2, rows) => {
+                    if (err2) {
+                        return res.json({ 
+                            success: true, 
+                            message: 'Labour updated successfully' 
+                        });
+                    }
+                    
+                    console.log('✅ Labour updated:', labourId);
+                    res.json({ 
+                        success: true, 
+                        message: 'Labour updated successfully',
+                        labour: rows[0]
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Delete labour
+app.delete('/api/labour/:id', (req, res) => {
+    const labourId = req.params.id;
+    
+    console.log('\n🗑️ DELETE LABOUR ======================');
+    console.log('Labour ID:', labourId);
+    
+    db.query('DELETE FROM labour WHERE id = ?', [labourId], (err, result) => {
+        if (err) {
+            console.error('❌ Delete labour error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Labour not found' 
+            });
+        }
+        
+        console.log('✅ Labour deleted:', labourId);
+        res.json({ 
+            success: true, 
+            message: 'Labour deleted successfully' 
+        });
+    });
+});
+
+// Get labour statistics
+app.get('/api/labour/stats/summary', (req, res) => {
+    db.query(
+        `SELECT 
+            COUNT(*) as total_labour,
+            SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active_labour,
+            SUM(CASE WHEN status = 'On Leave' THEN 1 ELSE 0 END) as on_leave_labour,
+            SUM(CASE WHEN status = 'Terminated' THEN 1 ELSE 0 END) as terminated_labour,
+            SUM(CASE WHEN status = 'Inactive' THEN 1 ELSE 0 END) as inactive_labour,
+            SUM(CASE WHEN category = 'Skilled' THEN 1 ELSE 0 END) as skilled_labour,
+            SUM(CASE WHEN category = 'Semi-skilled' THEN 1 ELSE 0 END) as semi_skilled_labour,
+            SUM(CASE WHEN category = 'Unskilled' THEN 1 ELSE 0 END) as unskilled_labour,
+            SUM(CASE WHEN category = 'Foreman' THEN 1 ELSE 0 END) as foreman_labour,
+            SUM(CASE WHEN category = 'Supervisor' THEN 1 ELSE 0 END) as supervisor_labour,
+            COUNT(DISTINCT trade) as unique_trades,
+            SUM(daily_rate * 26) as estimated_monthly_cost
+        FROM labour`,
+        (err, results) => {
+            if (err) {
+                console.error('❌ Labour stats error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error' 
+                });
+            }
+            
+            res.json({
+                success: true,
+                stats: results[0]
+            });
+        }
+    );
+});
+
+// Get labour by project
+app.get('/api/labour/project/:projectName', (req, res) => {
+    const projectName = req.params.projectName;
+    
+    db.query(
+        'SELECT * FROM labour WHERE assigned_project = ? ORDER BY name',
+        [projectName],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get labour by project error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({ success: true, labour: results });
+        }
+    );
+});
+
+// Get labour by trade
+app.get('/api/labour/trade/:trade', (req, res) => {
+    const trade = req.params.trade;
+    
+    db.query(
+        'SELECT * FROM labour WHERE trade = ? AND status = "Active" ORDER BY name',
+        [trade],
+        (err, results) => {
+            if (err) {
+                console.error('❌ Get labour by trade error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({ success: true, labour: results });
+        }
+    );
+});
+
+// Bulk update labour status
+app.patch('/api/labour/bulk/status', (req, res) => {
+    const { labourIds, status } = req.body;
+    
+    if (!labourIds || !Array.isArray(labourIds) || labourIds.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: 'Labour IDs array is required'
+        });
+    }
+    
+    if (!['Active', 'On Leave', 'Terminated', 'Inactive'].includes(status)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid status'
+        });
+    }
+    
+    const placeholders = labourIds.map(() => '?').join(',');
+    
+    db.query(
+        `UPDATE labour SET status = ? WHERE id IN (${placeholders})`,
+        [status, ...labourIds],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Bulk update error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({
+                success: true,
+                message: `Updated ${result.affectedRows} labour records to ${status}`,
+                updatedCount: result.affectedRows
+            });
+        }
+    );
+});
+
+// Get labour skill distribution
+app.get('/api/labour/skills/distribution', (req, res) => {
+    db.query(
+        `SELECT 
+            trade,
+            COUNT(*) as count,
+            SUM(CASE WHEN category = 'Skilled' THEN 1 ELSE 0 END) as skilled_count,
+            SUM(CASE WHEN category = 'Semi-skilled' THEN 1 ELSE 0 END) as semi_skilled_count,
+            SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active_count
+        FROM labour
+        GROUP BY trade
+        ORDER BY count DESC`,
+        (err, results) => {
+            if (err) {
+                console.error('❌ Skill distribution error:', err.message);
+                return res.status(500).json({ success: false, message: 'Database error' });
+            }
+            
+            res.json({
+                success: true,
+                distribution: results
+            });
+        }
+    );
+});
+
+
 // ==================== START SERVER ====================
 app.listen(PORT, () => {
     console.log('='.repeat(60));
@@ -1413,6 +1796,18 @@ console.log(`   POST http://localhost:${PORT}/api/projects`);
 console.log(`   PUT  http://localhost:${PORT}/api/projects/:id`);
 console.log(`   DELETE http://localhost:${PORT}/api/projects/:id`);
 console.log(`   GET  http://localhost:${PORT}/api/projects/stats/summary`);
+//
+// Add this to your existing console.log section
+console.log(`   GET  http://localhost:${PORT}/api/labour`);
+console.log(`   GET  http://localhost:${PORT}/api/labour/:id`);
+console.log(`   POST http://localhost:${PORT}/api/labour`);
+console.log(`   PUT  http://localhost:${PORT}/api/labour/:id`);
+console.log(`   DELETE http://localhost:${PORT}/api/labour/:id`);
+console.log(`   GET  http://localhost:${PORT}/api/labour/stats/summary`);
+console.log(`   GET  http://localhost:${PORT}/api/labour/project/:projectName`);
+console.log(`   GET  http://localhost:${PORT}/api/labour/trade/:trade`);
+console.log(`   PATCH http://localhost:${PORT}/api/labour/bulk/status`);
+console.log(`   GET  http://localhost:${PORT}/api/labour/skills/distribution`);
 
     console.log(`   GET  http://localhost:${PORT}/api/test`);
     console.log(`   GET  http://localhost:${PORT}/api/users`);
