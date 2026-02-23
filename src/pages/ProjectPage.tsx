@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Field } from "@/components/CrudForm";
 import BaseCrudPage from "../components/BaseCrudPage";
 import MainLayout from "../components/MainLayout";
@@ -122,6 +122,23 @@ const ProjectsPage = () => {
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
 
+  // Memoize fetchProjects to prevent unnecessary re-renders
+  const fetchProjects = useCallback(async (): Promise<any[]> => {
+    setLoading(true);
+    try {
+      const data = await projectsApi.getProjects();
+      setProjects(data);
+      setError('');
+      return data;
+    } catch (err: any) {
+      console.error('Fetch projects error:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -138,24 +155,15 @@ const ProjectsPage = () => {
     }
 
     fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
-    try {
-      const data = await projectsApi.getProjects();
-      setProjects(data);
-    } catch (err: any) {
-      console.error('Fetch projects error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [navigate, fetchProjects]);
 
   const handleAddProject = async (values: any) => {
     try {
       const newProject = await projectsApi.createProject(values);
-      await fetchProjects();
+      // Optimistic update
+      setProjects(prev => [...prev, newProject]);
+      // Still fetch to ensure consistency with server
+      fetchProjects();
       return newProject;
     } catch (err: any) {
       setError(err.message);
@@ -166,7 +174,12 @@ const ProjectsPage = () => {
   const handleEditProject = async (values: any) => {
     try {
       const updatedProject = await projectsApi.updateProject(values.id, values);
-      await fetchProjects();
+      // Optimistic update
+      setProjects(prev => prev.map(p => 
+        p.id === values.id ? updatedProject : p
+      ));
+      // Still fetch to ensure consistency with server
+      fetchProjects();
       return updatedProject;
     } catch (err: any) {
       setError(err.message);
@@ -177,7 +190,10 @@ const ProjectsPage = () => {
   const handleDeleteProject = async (id: number) => {
     try {
       await projectsApi.deleteProject(id);
-      await fetchProjects();
+      // Optimistic update
+      setProjects(prev => prev.filter(p => p.id !== id));
+      // Still fetch to ensure consistency with server
+      fetchProjects();
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -190,7 +206,7 @@ const ProjectsPage = () => {
     navigate('/');
   };
 
-  if (loading) {
+  if (loading && projects.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading projects...</div>
@@ -221,6 +237,7 @@ const ProjectsPage = () => {
         onAdd={handleAddProject}
         onEdit={handleEditProject}
         onDelete={handleDeleteProject}
+        onDataChange={fetchProjects}
       />
     </MainLayout>
   );

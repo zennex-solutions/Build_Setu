@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Field } from "../components/CrudForm";
 import BaseCrudPage from "../components/BaseCrudPage";
 import MainLayout from "../components/MainLayout";
@@ -187,6 +187,56 @@ const UsersPage = () => {
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
 
+  // Memoize fetchUsers to prevent unnecessary re-renders
+  const fetchUsers = useCallback(async (): Promise<any[]> => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Fetching users with token:', token);
+      
+      const response = await fetch('http://localhost:5000/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.log('Unauthorized - clearing localStorage');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/');
+          throw new Error('Unauthorized');
+        }
+        throw new Error('Failed to fetch users');
+      }
+
+      const data = await response.json();
+      console.log('API response:', data);
+
+      let fetchedUsers = [];
+      if (data.success && data.users) {
+        fetchedUsers = data.users;
+      } else if (Array.isArray(data)) {
+        fetchedUsers = data;
+      } else {
+        fetchedUsers = [];
+      }
+      
+      setUsers(fetchedUsers);
+      setError('');
+      return fetchedUsers;
+    } catch (err: any) {
+      console.error('Fetch error:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]);
+
   useEffect(() => {
     // Get user from localStorage
     const userStr = localStorage.getItem('user');
@@ -206,47 +256,7 @@ const UsersPage = () => {
     }
 
     fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      console.log('Fetching users with token:', token);
-      
-      const response = await fetch('http://localhost:5000/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.log('Unauthorized - clearing localStorage');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          navigate('/');
-          return;
-        }
-        throw new Error('Failed to fetch users');
-      }
-
-      const data = await response.json();
-      console.log('API response:', data);
-
-      if (data.success && data.users) {
-        setUsers(data.users);
-      } else {
-        setUsers([]);
-      }
-    } catch (err: any) {
-      console.error('Fetch error:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [navigate, fetchUsers]);
 
   const handleAddUser = async (values: any) => {
     try {
@@ -267,8 +277,15 @@ const UsersPage = () => {
       const data = await response.json();
       console.log('User added:', data);
       
-      // Refresh the user list
-      await fetchUsers();
+      // Optimistic update
+      if (data.user) {
+        setUsers(prev => [...prev, data.user]);
+      } else if (data) {
+        setUsers(prev => [...prev, data]);
+      }
+      
+      // Still fetch to ensure consistency with server
+      fetchUsers();
       
       return data;
     } catch (err: any) {
@@ -297,8 +314,15 @@ const UsersPage = () => {
       const data = await response.json();
       console.log('User updated:', data);
       
-      // Refresh the user list
-      await fetchUsers();
+      // Optimistic update
+      if (data.user) {
+        setUsers(prev => prev.map(u => u.id === values.id ? data.user : u));
+      } else if (data) {
+        setUsers(prev => prev.map(u => u.id === values.id ? data : u));
+      }
+      
+      // Still fetch to ensure consistency with server
+      fetchUsers();
       
       return data;
     } catch (err: any) {
@@ -324,8 +348,11 @@ const UsersPage = () => {
 
       console.log('User deleted:', id);
       
-      // Refresh the user list
-      await fetchUsers();
+      // Optimistic update
+      setUsers(prev => prev.filter(u => u.id !== id));
+      
+      // Still fetch to ensure consistency with server
+      fetchUsers();
     } catch (err: any) {
       console.error('Delete user error:', err);
       setError(err.message);
@@ -339,7 +366,7 @@ const UsersPage = () => {
     navigate('/');
   };
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading users...</div>
@@ -376,6 +403,7 @@ const UsersPage = () => {
         onAdd={handleAddUser}
         onEdit={handleEditUser}
         onDelete={handleDeleteUser}
+        onDataChange={fetchUsers}
       />
     </MainLayout>
   );

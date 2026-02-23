@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Field } from "@/components/CrudForm";
 import BaseCrudPage from "../components/BaseCrudPage";
 import MainLayout from "../components/MainLayout";
@@ -230,8 +230,8 @@ const LabourPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch labour data from API
-  const fetchLabour = async () => {
+  // Memoize fetchLabour to prevent unnecessary re-renders
+  const fetchLabour = useCallback(async (): Promise<any[]> => {
     try {
       setLoading(true);
       console.log('Fetching labour data...');
@@ -247,13 +247,20 @@ const LabourPage = () => {
       console.log('Fetched labour data:', data.labour);
       setLabourData(data.labour || []);
       setError(null);
+      return data.labour || [];
     } catch (err) {
       console.error('Error fetching labour:', err);
       setError('Failed to load labour data');
+      throw err;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchLabour();
+  }, [fetchLabour]);
 
   // Handle add labour - Transform form data to DB format
   const handleAdd = async (values: any) => {
@@ -272,9 +279,15 @@ const LabourPage = () => {
         throw new Error(error.message || 'Failed to add labour');
       }
       
+      const newLabour = await response.json();
       console.log('Add successful, refreshing data...');
-      await fetchLabour(); // Refresh the list
-      console.log('Data refreshed, new labourData:', labourData);
+      
+      // Optimistic update
+      setLabourData(prev => [...prev, newLabour.labour || newLabour]);
+      
+      // Still fetch to ensure consistency with server
+      fetchLabour();
+      
       return { success: true };
     } catch (err: any) {
       console.error('Error adding labour:', err);
@@ -300,9 +313,17 @@ const LabourPage = () => {
         throw new Error(error.message || 'Failed to update labour');
       }
       
+      const updatedLabour = await response.json();
       console.log('Edit successful, refreshing data...');
-      await fetchLabour(); // Refresh the list
-      console.log('Data refreshed, new labourData:', labourData);
+      
+      // Optimistic update
+      setLabourData(prev => prev.map(l => 
+        l.id === values.id ? (updatedLabour.labour || updatedLabour) : l
+      ));
+      
+      // Still fetch to ensure consistency with server
+      fetchLabour();
+      
       return { success: true };
     } catch (err: any) {
       console.error('Error updating labour:', err);
@@ -325,8 +346,13 @@ const LabourPage = () => {
       }
       
       console.log('Delete successful, refreshing data...');
-      await fetchLabour(); // Refresh the list
-      console.log('Data refreshed, new labourData:', labourData);
+      
+      // Optimistic update
+      setLabourData(prev => prev.filter(l => l.id !== id));
+      
+      // Still fetch to ensure consistency with server
+      fetchLabour();
+      
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting labour:', err);
@@ -342,11 +368,6 @@ const LabourPage = () => {
     console.log('Transformed for view:', transformed);
     return transformed;
   };
-
-  // Load data on component mount
-  useEffect(() => {
-    fetchLabour();
-  }, []);
 
   if (loading && labourData.length === 0) {
     return (
@@ -387,6 +408,7 @@ const LabourPage = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onView={handleView}
+        onDataChange={fetchLabour}
       />
     </MainLayout>
   );
