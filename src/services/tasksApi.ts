@@ -15,12 +15,15 @@ class TasksApiService {
     };
 
     try {
+      console.log(`🌐 Making request to: ${API_URL}${endpoint}`);
+      
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
       });
 
       const data = await response.json();
+      console.log(`📦 Response from ${endpoint}:`, data);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -33,12 +36,12 @@ class TasksApiService {
 
       return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('❌ API request failed:', error);
       throw error;
     }
   }
 
-  // Get all tasks
+  // Get all tasks with project details
   async getTasks() {
     const data = await this.request('/tasks');
     return data.tasks || [];
@@ -82,9 +85,9 @@ class TasksApiService {
     return data.stats;
   }
 
-  // Get tasks by project
-  async getTasksByProject(project: string) {
-    const data = await this.request(`/tasks/project/${encodeURIComponent(project)}`);
+  // Get tasks by project ID
+  async getTasksByProject(projectId: number) {
+    const data = await this.request(`/tasks/project/${projectId}`);
     return data.tasks || [];
   }
 

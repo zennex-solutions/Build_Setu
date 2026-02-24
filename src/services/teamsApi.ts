@@ -15,6 +15,8 @@ class TeamsApiService {
     };
 
     try {
+      console.log(`🌐 Making request to: ${API_URL}${endpoint}`);
+      
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
@@ -33,12 +35,12 @@ class TeamsApiService {
 
       return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('❌ API request failed:', error);
       throw error;
     }
   }
 
-  // Get all teams
+  // Get all teams with project details
   async getTeams() {
     const data = await this.request('/teams');
     return data.teams || [];
@@ -80,6 +82,24 @@ class TeamsApiService {
   async getTeamStats() {
     const data = await this.request('/teams/stats/summary');
     return data.stats;
+  }
+
+  // Get teams by project ID
+  async getTeamsByProject(projectId: number) {
+    const data = await this.request(`/teams/project/${projectId}`);
+    return data.teams || [];
+  }
+
+  // Get teams by status
+  async getTeamsByStatus(status: string) {
+    const data = await this.request(`/teams/status/${status}`);
+    return data.teams || [];
+  }
+
+  // Get teams by trade
+  async getTeamsByTrade(trade: string) {
+    const data = await this.request(`/teams/trade/${trade}`);
+    return data.teams || [];
   }
 }
 

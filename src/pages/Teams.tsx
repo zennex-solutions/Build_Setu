@@ -277,48 +277,27 @@
 
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Field } from "@/components/CrudForm";
 import BaseCrudPage from "../components/BaseCrudPage";
 import MainLayout from "../components/MainLayout";
 import { useNavigate } from "react-router-dom";
 import teamsApi from '../services/teamsApi';
+import projectsApi from '../services/projectsApi';
 
 // =====================
-// Team Fields
+// Helper functions
 // =====================
-const teamFields: Field[] = [
-  { name: "name", label: "Crew Name", type: "text", required: true },
-  { name: "lead", label: "Team Lead", type: "text", required: true },
-  {
-    name: "trade",
-    label: "Trade",
-    type: "select",
-    options: ["Civil/Masonry", "Electrical", "Plumbing", "Carpentry"], 
-    required: true
-  },
-  { name: "members", label: "No. of Workers", type: "number" },
-  {
-    name: "project",
-    label: "Assigned Project",
-    type: "select",
-    options: ["Alpha Tower", "Skyline Villa", "Main Road Bridge"],
-    required: true
-  },
-  {
-    name: "status",
-    label: "Status",
-    type: "select",
-    options: ["On Site", "Idle", "Off Duty"],
-  },
-];
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  return dateString.split('T')[0];
+};
 
 // =====================
 // Capacity Template
 // =====================
 const capacityTemplate = (props: any) => {
-  // Ensure we have valid data
-  const members = props.members || props.rowData?.members || 0;
+  const members = props.members || 0;
   const maxCapacity = 20;
   const percentage = Math.min((Number(members) / maxCapacity) * 100, 100);
 
@@ -345,13 +324,12 @@ const capacityTemplate = (props: any) => {
 // Status Badge
 // =====================
 const statusTemplate = (props: any) => {
-  const status = props.status || props.rowData?.status || "Unknown";
+  const status = props.status;
   
   const styles: Record<string, string> = {
     "On Site": "bg-green-100 text-green-800",
     "Idle": "bg-yellow-100 text-yellow-800",
     "Off Duty": "bg-gray-200 text-gray-700",
-    "Unknown": "bg-gray-100 text-gray-600"
   };
 
   return (
@@ -366,11 +344,77 @@ const statusTemplate = (props: any) => {
 };
 
 // =====================
+// Project Template
+// =====================
+const projectTemplate = (props: any) => {
+  const projectName = props.project_name;
+  if (!projectName) return <span className="text-gray-400 italic">No Project</span>;
+  return <span className="font-medium text-blue-600">{projectName}</span>;
+};
+
+// =====================
+// Trade Template
+// =====================
+const tradeTemplate = (props: any) => {
+  const trade = props.trade;
+  const styles: Record<string, string> = {
+    "Civil/Masonry": "bg-orange-100 text-orange-800",
+    "Electrical": "bg-yellow-100 text-yellow-800",
+    "Plumbing": "bg-cyan-100 text-cyan-800",
+    "Carpentry": "bg-emerald-100 text-emerald-800",
+  };
+  
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs ${styles[trade] || "bg-gray-100"}`}>
+      {trade}
+    </span>
+  );
+};
+
+// =====================
+// Data Transformers
+// =====================
+const mapApiToForm = (apiData: any) => {
+  if (!apiData) return {};
+  
+  console.log('Mapping team data:', {
+    id: apiData.id,
+    name: apiData.name,
+    project_id: apiData.project_id,
+    project_name: apiData.project_name
+  });
+  
+  return {
+    id: apiData.id,
+    name: apiData.name || '',
+    lead: apiData.lead || '',
+    trade: apiData.trade || 'Civil/Masonry',
+    members: apiData.members || 0,
+    project_id: apiData.project_id,
+    project_name: apiData.project_name || 'No Project',
+    status: apiData.status || 'Idle',
+    // Keep original for grid
+    projectName: apiData.project_name,
+  };
+};
+
+const mapFormToApi = (formData: any) => {
+  return {
+    name: formData.name,
+    lead: formData.lead,
+    trade: formData.trade,
+    members: parseInt(formData.members) || 0,
+    project_id: formData.project_id,
+    status: formData.status,
+  };
+};
+
+// =====================
 // Grid Columns
 // =====================
 const teamGridColumns = [
   { field: "name", headerText: "Crew Name", width: 160 },
-  { field: "trade", headerText: "Trade", width: 140 },
+  { field: "trade", headerText: "Trade", width: 140, template: tradeTemplate },
   { field: "lead", headerText: "Team Lead", width: 150 },
   {
     field: "members",
@@ -378,7 +422,7 @@ const teamGridColumns = [
     template: capacityTemplate,
     width: 200,
   },
-  { field: "project", headerText: "Site Location", width: 160 },
+  { field: "project_name", headerText: "Project", width: 160, template: projectTemplate },
   {
     field: "status",
     headerText: "Status",
@@ -394,6 +438,15 @@ const TeamSummaryCards = ({ teams }: { teams: any[] }) => {
   const totalManpower = teams.reduce((acc, t) => acc + Number(t.members || 0), 0);
   const onSiteCount = teams.filter((t) => t.status === "On Site").length;
   const idleCount = teams.filter((t) => t.status === "Idle").length;
+  const offDutyCount = teams.filter((t) => t.status === "Off Duty").length;
+  
+  const masonryCount = teams
+    .filter(t => t.trade === "Civil/Masonry")
+    .reduce((acc, t) => acc + Number(t.members || 0), 0);
+  
+  const electricalCount = teams
+    .filter(t => t.trade === "Electrical")
+    .reduce((acc, t) => acc + Number(t.members || 0), 0);
 
   return (
     <>
@@ -414,12 +467,13 @@ const TeamSummaryCards = ({ teams }: { teams: any[] }) => {
         <p className="text-2xl font-bold text-green-600">
           {onSiteCount}
         </p>
+        <div className="text-xs text-gray-500">{masonryCount} Masonry • {electricalCount} Electrical</div>
       </div>
 
       <div className="bg-white p-4 rounded shadow">
-        <h3 className="text-sm text-gray-500">Idle Crews</h3>
+        <h3 className="text-sm text-gray-500">Idle/Off Duty</h3>
         <p className="text-2xl font-bold text-yellow-600">
-          {idleCount}
+          {idleCount + offDutyCount}
         </p>
       </div>
     </>
@@ -431,10 +485,56 @@ const TeamSummaryCards = ({ teams }: { teams: any[] }) => {
 // =====================
 const TeamsPage = () => {
   const [teams, setTeams] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectNames, setProjectNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
+
+  // Load projects for dropdown
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const data = await projectsApi.getProjects();
+        console.log('✅ Projects loaded:', data);
+        setProjects(data);
+        setProjectNames(data.map((p: any) => p.name));
+      } catch (err) {
+        console.error('Error loading projects:', err);
+      }
+    };
+    loadProjects();
+  }, []);
+
+  const fetchTeams = useCallback(async (): Promise<any[]> => {
+    setLoading(true);
+    try {
+      console.log('📡 Fetching teams...');
+      const data = await teamsApi.getTeams();
+      
+      console.log('✅ Raw teams data:', data);
+      
+      const transformedTeams = data.map(mapApiToForm);
+      
+      console.log('✅ Transformed teams:', transformedTeams.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        project: t.project_name,
+        project_id: t.project_id
+      })));
+      
+      setTeams(transformedTeams);
+      setError('');
+      return transformedTeams;
+    } catch (err: any) {
+      console.error('❌ Fetch teams error:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -452,28 +552,49 @@ const TeamsPage = () => {
     }
 
     fetchTeams();
-  }, []);
+  }, [navigate, fetchTeams]);
 
-const fetchTeams = async (): Promise<any[]> => {  // Add return type
-  setLoading(true);
-  try {
-    const data = await teamsApi.getTeams();
-    setTeams(data);
-    setError('');
-    return data;  // Return the data
-  } catch (err: any) {
-    console.error('Fetch teams error:', err);
-    setError(err.message);
-    throw err;  // Re-throw to handle errors
-  } finally {
-    setLoading(false);
-  }
-};
+  // Dynamic fields
+  const getFields = (): Field[] => {
+    return [
+      { name: "name", label: "Crew Name", type: "text", required: true },
+      { name: "lead", label: "Team Lead", type: "text", required: true },
+      {
+        name: "trade",
+        label: "Trade",
+        type: "select",
+        options: ["Civil/Masonry", "Electrical", "Plumbing", "Carpentry"],
+        required: true
+      },
+      { name: "members", label: "No. of Workers", type: "number" },
+      {
+        name: "project_id",
+        label: "Assigned Project",
+        type: "select",
+        options: projectNames,
+        required: true
+      },
+      {
+        name: "status",
+        label: "Status",
+        type: "select",
+        options: ["On Site", "Idle", "Off Duty"],
+      },
+    ];
+  };
 
   const handleAddTeam = async (values: any) => {
     try {
-      const newTeam = await teamsApi.createTeam(values);
-      await fetchTeams(); // Refresh after add
+      const selectedProject = projects.find(p => p.name === values.project_id);
+      
+      const apiData = {
+        ...mapFormToApi(values),
+        project_id: selectedProject?.id || null
+      };
+      
+      console.log('📝 Adding team:', apiData);
+      const newTeam = await teamsApi.createTeam(apiData);
+      await fetchTeams();
       return newTeam;
     } catch (err: any) {
       setError(err.message);
@@ -483,8 +604,16 @@ const fetchTeams = async (): Promise<any[]> => {  // Add return type
 
   const handleEditTeam = async (values: any) => {
     try {
-      const updatedTeam = await teamsApi.updateTeam(values.id, values);
-      await fetchTeams(); // Refresh after edit
+      const selectedProject = projects.find(p => p.name === values.project_id);
+      
+      const apiData = {
+        ...mapFormToApi(values),
+        project_id: selectedProject?.id || null
+      };
+      
+      console.log('📝 Editing team:', values.id, apiData);
+      const updatedTeam = await teamsApi.updateTeam(values.id, apiData);
+      await fetchTeams();
       return updatedTeam;
     } catch (err: any) {
       setError(err.message);
@@ -494,12 +623,21 @@ const fetchTeams = async (): Promise<any[]> => {  // Add return type
 
   const handleDeleteTeam = async (id: number) => {
     try {
+      console.log('🗑️ Deleting team:', id);
       await teamsApi.deleteTeam(id);
-      await fetchTeams(); // Refresh after delete
+      await fetchTeams();
     } catch (err: any) {
       setError(err.message);
       throw err;
     }
+  };
+
+  const handleViewTeam = (item: any) => {
+    const projectName = projects.find(p => p.id === item.project_id)?.name || item.project_name;
+    return {
+      ...item,
+      project_id: projectName,
+    };
   };
 
   const handleLogout = () => {
@@ -530,15 +668,16 @@ const fetchTeams = async (): Promise<any[]> => {  // Add return type
       )}
       
       <BaseCrudPage
-        title="Team Assignments"
-        description="Monitor real-time crew capacity and project allocation"
-        fields={teamFields}
+        title="Team"
+        description="Manage construction crews, track capacity and project assignments"
+        fields={getFields()}
         initialData={teams}
         gridColumns={teamGridColumns}
         summaryCards={<TeamSummaryCards teams={teams} />}
         onAdd={handleAddTeam}
         onEdit={handleEditTeam}
         onDelete={handleDeleteTeam}
+        onView={handleViewTeam}
         onDataChange={fetchTeams}
       />
     </MainLayout>
