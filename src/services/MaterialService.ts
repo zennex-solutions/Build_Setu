@@ -9,34 +9,45 @@ const getAuthHeaders = () => {
 };
 
 // Data transformers
-export const mapDbToForm = (dbRecord: any) => {
+export const mapDbToForm = (dbRecord: any, supplierMap: Record<number, string>) => {
   if (!dbRecord) return {};
   
-  console.log('Mapping DB record to form:', dbRecord); // Add this for debugging
+  console.log('Mapping material DB record:', {
+    id: dbRecord.id,
+    name: dbRecord.name,
+    supplier_id: dbRecord.supplier_id,
+    supplier_name: dbRecord.supplier_name
+  });
   
   return {
     id: dbRecord.id,
-    code: dbRecord.code || dbRecord.material_code || '', // Try multiple possible field names
-    name: dbRecord.name || dbRecord.material_name || '',
+    code: dbRecord.code || '',
+    name: dbRecord.name || '',
     category: dbRecord.category || '',
     unit: dbRecord.unit || '',
-    unitPrice: dbRecord.unit_price !== undefined ? Number(dbRecord.unit_price) : 
-               dbRecord.unitPrice !== undefined ? Number(dbRecord.unitPrice) : 0,
-    quantity: dbRecord.quantity !== undefined ? Number(dbRecord.quantity) : 
-              dbRecord.stock !== undefined ? Number(dbRecord.stock) : 0,
-    minQuantity: dbRecord.min_quantity !== undefined ? Number(dbRecord.min_quantity) : 
-                 dbRecord.minQuantity !== undefined ? Number(dbRecord.minQuantity) : 0,
-    maxQuantity: dbRecord.max_quantity !== undefined ? Number(dbRecord.max_quantity) : 
-                 dbRecord.maxQuantity !== undefined ? Number(dbRecord.maxQuantity) : 0,
-    supplier: dbRecord.supplier || '',
-    supplierContact: dbRecord.supplier_contact || dbRecord.supplierContact || '',
+    unitPrice: dbRecord.unit_price !== undefined ? Number(dbRecord.unit_price) : 0,
+    quantity: dbRecord.quantity !== undefined ? Number(dbRecord.quantity) : 0,
+    minQuantity: dbRecord.min_quantity !== undefined ? Number(dbRecord.min_quantity) : 0,
+    maxQuantity: dbRecord.max_quantity !== undefined ? Number(dbRecord.max_quantity) : 0,
+    supplier_id: dbRecord.supplier_id,
+    supplier_name: supplierMap[dbRecord.supplier_id] || dbRecord.supplier_name || 'No Supplier',
+    supplierContact: dbRecord.supplier_contact || '',
     location: dbRecord.location || '',
     description: dbRecord.description || '',
-    isActive: dbRecord.is_active === 1 || dbRecord.isActive === true,
+    isActive: dbRecord.is_active === 1,
+    
+    // Keep snake_case for grid
+    unit_price: dbRecord.unit_price,
+    min_quantity: dbRecord.min_quantity,
+    max_quantity: dbRecord.max_quantity,
+    supplier_contact: dbRecord.supplier_contact,
+    is_active: dbRecord.is_active,
   };
 };
 
 export const mapFormToDb = (formValues: any) => {
+  console.log('Mapping form values to DB:', formValues);
+  
   return {
     code: formValues.code,
     name: formValues.name,
@@ -46,11 +57,11 @@ export const mapFormToDb = (formValues: any) => {
     quantity: formValues.quantity ? parseFloat(formValues.quantity) : 0,
     minQuantity: formValues.minQuantity ? parseFloat(formValues.minQuantity) : 0,
     maxQuantity: formValues.maxQuantity ? parseFloat(formValues.maxQuantity) : 0,
-    supplier: formValues.supplier,
-    supplierContact: formValues.supplierContact,
-    location: formValues.location,
-    description: formValues.description,
-    isActive: formValues.isActive,
+    supplier_id: formValues.supplier_id, // This should be a number (1,2,3,etc.)
+    supplierContact: formValues.supplierContact || null,
+    location: formValues.location || null,
+    description: formValues.description || null,
+    isActive: formValues.isActive === undefined ? true : formValues.isActive,
   };
 };
 
@@ -63,30 +74,12 @@ export const fetchMaterials = async (): Promise<any[]> => {
       headers: getAuthHeaders(),
     });
     
-    console.log('Response status:', response.status);
-    
     if (!response.ok) {
       throw new Error('Failed to fetch materials');
     }
     
     const data = await response.json();
-    console.log('Raw API response:', data);
-    
-    // Log the first material to see its structure
-    if (data.materials && data.materials.length > 0) {
-      console.log('First material raw:', data.materials[0]);
-      
-      // Map each record and log the result
-      const mapped = data.materials.map((item: any) => {
-        const mapped = mapDbToForm(item);
-        console.log('Mapped material:', mapped);
-        return mapped;
-      });
-      
-      return mapped;
-    }
-    
-    return [];
+    return data.materials || [];
   } catch (error) {
     console.error('Fetch error:', error);
     throw error;
@@ -110,19 +103,36 @@ export const addMaterial = async (values: any) => {
 };
 
 export const updateMaterial = async (id: number, values: any) => {
-  const dbData = mapFormToDb(values);
-  const response = await fetch(`${API_BASE}/materials/${id}`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(dbData),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update material');
+  try {
+    const dbData = mapFormToDb(values);
+    console.log('=== UPDATE MATERIAL DEBUG ===');
+    console.log('Material ID:', id);
+    console.log('Form values received:', values);
+    console.log('Mapped DB data:', dbData);
+    console.log('Request URL:', `${API_BASE}/materials/${id}`);
+    console.log('Auth headers:', getAuthHeaders());
+    
+    const response = await fetch(`${API_BASE}/materials/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(dbData),
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    
+    const responseData = await response.json();
+    console.log('Server response:', responseData);
+    
+    if (!response.ok) {
+      throw new Error(responseData.message || `Failed to update material (Status: ${response.status})`);
+    }
+    
+    return responseData;
+  } catch (error) {
+    console.error('Update material error details:', error);
+    throw error;
   }
-  
-  return await response.json();
 };
 
 export const deleteMaterial = async (id: number) => {
@@ -149,30 +159,4 @@ export const getMaterialStats = async () => {
   
   const data = await response.json();
   return data.stats;
-};
-
-export const getLowStockMaterials = async () => {
-  const response = await fetch(`${API_BASE}/materials/low-stock`, {
-    headers: getAuthHeaders(),
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch low stock materials');
-  }
-  
-  const data = await response.json();
-  return data.materials;
-};
-
-export const searchMaterials = async (query: string) => {
-  const response = await fetch(`${API_BASE}/materials/search/${encodeURIComponent(query)}`, {
-    headers: getAuthHeaders(),
-  });
-  
-  if (!response.ok) {
-    throw new Error('Failed to search materials');
-  }
-  
-  const data = await response.json();
-  return data.materials;
 };

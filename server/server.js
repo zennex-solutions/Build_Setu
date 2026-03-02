@@ -1786,11 +1786,12 @@ app.put('/api/labour/:id', (req, res) => {
 
 // ==================== MATERIALS ENDPOINTS ====================
 
-// Get all materials
+// ==================== MATERIALS ENDPOINTS ====================
+
+// Get all materials with supplier details
 app.get('/api/materials', (req, res) => {
     console.log('\n📦 FETCHING MATERIALS ======================');
     
-    // Check authentication
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         console.log('❌ No token provided');
@@ -1800,62 +1801,90 @@ app.get('/api/materials', (req, res) => {
         });
     }
 
-    db.query(
-        'SELECT * FROM materials ORDER BY created_at DESC',
-        (err, results) => {
-            if (err) {
-                console.error('❌ Get materials error:', err.message);
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Database error: ' + err.message 
-                });
-            }
-            
-            console.log(`✅ Found ${results.length} materials`);
-            res.json({ 
-                success: true, 
-                materials: results 
+    const query = `
+        SELECT 
+            m.*,
+            s.id as supplier_id,
+            s.name as supplier_name,
+            s.contact_person as supplier_contact_person,
+            s.phone as supplier_phone,
+            s.email as supplier_email,
+            s.rating as supplier_rating
+        FROM materials m
+        LEFT JOIN suppliers s ON m.supplier_id = s.id
+        ORDER BY m.created_at DESC
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('❌ Get materials error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error: ' + err.message 
             });
         }
-    );
+        
+        console.log(`✅ Found ${results.length} materials`);
+        
+        // Log first material to verify
+        if (results.length > 0) {
+            console.log('First material:', {
+                id: results[0].id,
+                name: results[0].name,
+                supplier: results[0].supplier_name,
+                supplier_id: results[0].supplier_id
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            materials: results 
+        });
+    });
 });
 
-// Get single material by ID
+// Get single material with supplier details
 app.get('/api/materials/:id', (req, res) => {
     const materialId = req.params.id;
     
-    db.query(
-        'SELECT * FROM materials WHERE id = ?',
-        [materialId],
-        (err, results) => {
-            if (err) {
-                console.error('❌ Get material error:', err.message);
-                return res.status(500).json({ success: false, message: 'Database error' });
-            }
-            
-            if (results.length === 0) {
-                return res.status(404).json({ success: false, message: 'Material not found' });
-            }
-            
-            res.json({ success: true, material: results[0] });
+    const query = `
+        SELECT 
+            m.*,
+            s.name as supplier_name,
+            s.contact_person as supplier_contact_person,
+            s.phone as supplier_phone
+        FROM materials m
+        LEFT JOIN suppliers s ON m.supplier_id = s.id
+        WHERE m.id = ?
+    `;
+
+    db.query(query, [materialId], (err, results) => {
+        if (err) {
+            console.error('❌ Get material error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
         }
-    );
+        
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, message: 'Material not found' });
+        }
+        
+        res.json({ success: true, material: results[0] });
+    });
 });
 
 // Create new material
 app.post('/api/materials', (req, res) => {
     const { 
         code, name, category, unit, unitPrice, quantity, 
-        minQuantity, maxQuantity, supplier, supplierContact, 
+        minQuantity, maxQuantity, supplier_id, supplierContact, 
         location, description, isActive 
     } = req.body;
     
     console.log('\n📝 CREATE MATERIAL ======================');
     console.log('Code:', code);
     console.log('Name:', name);
-    console.log('Category:', category);
+    console.log('Supplier ID:', supplier_id);
     
-    // Validation
     if (!code || !name || !category || !unit) {
         return res.status(400).json({
             success: false,
@@ -1863,7 +1892,6 @@ app.post('/api/materials', (req, res) => {
         });
     }
     
-    // Get user from token for created_by
     const authHeader = req.headers.authorization;
     let createdBy = null;
     if (authHeader) {
@@ -1880,12 +1908,12 @@ app.post('/api/materials', (req, res) => {
     db.query(
         `INSERT INTO materials (
             code, name, category, unit, unit_price, quantity, 
-            min_quantity, max_quantity, supplier, supplier_contact, 
+            min_quantity, max_quantity, supplier_id, supplier_contact, 
             location, description, is_active, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             code, name, category, unit, unitPrice || 0, quantity || 0, 
-            minQuantity || 0, maxQuantity || 0, supplier || null, 
+            minQuantity || 0, maxQuantity || 0, supplier_id || null, 
             supplierContact || null, location || null, description || null, 
             isActive !== undefined ? isActive : true, createdBy
         ],
@@ -1893,7 +1921,6 @@ app.post('/api/materials', (req, res) => {
             if (err) {
                 console.error('❌ Create material error:', err.message);
                 
-                // Check for duplicate code
                 if (err.code === 'ER_DUP_ENTRY') {
                     return res.status(400).json({ 
                         success: false, 
@@ -1907,101 +1934,150 @@ app.post('/api/materials', (req, res) => {
                 });
             }
             
-            // Fetch the created material
-            db.query(
-                'SELECT * FROM materials WHERE id = ?',
-                [result.insertId],
-                (err2, rows) => {
-                    if (err2) {
-                        return res.json({ 
-                            success: true, 
-                            message: 'Material created successfully',
-                            materialId: result.insertId 
-                        });
-                    }
-                    
-                    console.log('✅ Material created with ID:', result.insertId);
-                    res.status(201).json({
-                        success: true,
+            const query = `
+                SELECT 
+                    m.*,
+                    s.name as supplier_name
+                FROM materials m
+                LEFT JOIN suppliers s ON m.supplier_id = s.id
+                WHERE m.id = ?
+            `;
+            
+            db.query(query, [result.insertId], (err2, rows) => {
+                if (err2) {
+                    return res.json({ 
+                        success: true, 
                         message: 'Material created successfully',
-                        material: rows[0]
+                        materialId: result.insertId 
                     });
                 }
-            );
+                
+                console.log('✅ Material created with ID:', result.insertId);
+                res.status(201).json({
+                    success: true,
+                    message: 'Material created successfully',
+                    material: rows[0]
+                });
+            });
         }
     );
 });
 
 // Update material
+// Update material - WITH FULL DEBUGGING
 app.put('/api/materials/:id', (req, res) => {
     const materialId = req.params.id;
-    const { 
-        code, name, category, unit, unitPrice, quantity, 
-        minQuantity, maxQuantity, supplier, supplierContact, 
-        location, description, isActive 
-    } = req.body;
+    const body = req.body;
     
     console.log('\n📝 UPDATE MATERIAL ======================');
     console.log('Material ID:', materialId);
+    console.log('Complete request body:', JSON.stringify(body, null, 2));
     
-    db.query(
-        `UPDATE materials 
-         SET code = ?, name = ?, category = ?, unit = ?, unit_price = ?, 
-             quantity = ?, min_quantity = ?, max_quantity = ?, supplier = ?, 
-             supplier_contact = ?, location = ?, description = ?, is_active = ?
-         WHERE id = ?`,
-        [
-            code, name, category, unit, unitPrice, quantity, 
-            minQuantity, maxQuantity, supplier, supplierContact, 
-            location, description, isActive, materialId
-        ],
-        (err, result) => {
-            if (err) {
-                console.error('❌ Update material error:', err.message);
-                
-                // Check for duplicate code
-                if (err.code === 'ER_DUP_ENTRY') {
-                    return res.status(400).json({ 
-                        success: false, 
-                        message: 'Material code already exists' 
-                    });
-                }
-                
-                return res.status(500).json({ 
+    const { 
+        code, name, category, unit, unitPrice, quantity, 
+        minQuantity, maxQuantity, supplier_id, supplierContact, 
+        location, description, isActive 
+    } = body;
+    
+    console.log('Extracted values:', {
+        code, name, category, unit, unitPrice, quantity,
+        minQuantity, maxQuantity, supplier_id, supplierContact,
+        location, description, isActive
+    });
+    
+    // Validate required fields
+    if (!code || !name || !category || !unit) {
+        console.log('❌ Missing required fields');
+        return res.status(400).json({
+            success: false,
+            message: 'Code, name, category, and unit are required'
+        });
+    }
+    
+    // Log the SQL query we're about to execute
+    const query = `
+        UPDATE materials 
+        SET code = ?, name = ?, category = ?, unit = ?, unit_price = ?, 
+            quantity = ?, min_quantity = ?, max_quantity = ?, supplier_id = ?, 
+            supplier_contact = ?, location = ?, description = ?, is_active = ?
+        WHERE id = ?
+    `;
+    
+    const params = [
+        code, name, category, unit, 
+        unitPrice !== undefined ? unitPrice : 0, 
+        quantity !== undefined ? quantity : 0, 
+        minQuantity !== undefined ? minQuantity : 0, 
+        maxQuantity !== undefined ? maxQuantity : 0, 
+        supplier_id || null, 
+        supplierContact || null, 
+        location || null, 
+        description || null, 
+        isActive !== undefined ? isActive : true, 
+        materialId
+    ];
+    
+    console.log('SQL Query:', query);
+    console.log('SQL Params:', params);
+    
+    db.query(query, params, (err, result) => {
+        if (err) {
+            console.error('❌ SQL Error Details:');
+            console.error('Error code:', err.code);
+            console.error('Error number:', err.errno);
+            console.error('SQL state:', err.sqlState);
+            console.error('Error message:', err.message);
+            console.error('Full error object:', err);
+            
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ 
                     success: false, 
-                    message: 'Database error' 
+                    message: 'Material code already exists' 
                 });
             }
             
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ 
-                    success: false, 
-                    message: 'Material not found' 
-                });
-            }
-            
-            // Fetch updated material
-            db.query(
-                'SELECT * FROM materials WHERE id = ?',
-                [materialId],
-                (err2, rows) => {
-                    if (err2) {
-                        return res.json({ 
-                            success: true, 
-                            message: 'Material updated successfully' 
-                        });
-                    }
-                    
-                    console.log('✅ Material updated:', materialId);
-                    res.json({ 
-                        success: true, 
-                        message: 'Material updated successfully',
-                        material: rows[0]
-                    });
-                }
-            );
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error: ' + err.message 
+            });
         }
-    );
+        
+        console.log('✅ Update result:', result);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Material not found' 
+            });
+        }
+        
+        // Fetch updated material
+        const selectQuery = `
+            SELECT 
+                m.*,
+                s.name as supplier_name
+            FROM materials m
+            LEFT JOIN suppliers s ON m.supplier_id = s.id
+            WHERE m.id = ?
+        `;
+        
+        db.query(selectQuery, [materialId], (err2, rows) => {
+            if (err2) {
+                console.error('Error fetching updated material:', err2.message);
+                return res.json({ 
+                    success: true, 
+                    message: 'Material updated successfully' 
+                });
+            }
+            
+            console.log('✅ Material updated successfully');
+            res.json({ 
+                success: true, 
+                message: 'Material updated successfully',
+                material: rows[0]
+            });
+        });
+    });
 });
 
 // Delete material
@@ -2035,124 +2111,85 @@ app.delete('/api/materials/:id', (req, res) => {
     });
 });
 
-// Get material statistics
+// Get material statistics with supplier info
 app.get('/api/materials/stats/summary', (req, res) => {
-    db.query(
-        `SELECT 
+    const query = `
+        SELECT 
             COUNT(*) as total_materials,
             SUM(CASE WHEN quantity <= min_quantity THEN 1 ELSE 0 END) as low_stock_items,
             SUM(CASE WHEN quantity >= max_quantity * 0.9 THEN 1 ELSE 0 END) as full_stock_items,
             COUNT(DISTINCT category) as total_categories,
-            COUNT(DISTINCT supplier) as total_suppliers,
+            COUNT(DISTINCT supplier_id) as total_suppliers,
             SUM(quantity * unit_price) as total_inventory_value,
             SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_materials
-        FROM materials`,
-        (err, results) => {
-            if (err) {
-                console.error('❌ Material stats error:', err.message);
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Database error' 
-                });
-            }
-            
-            res.json({
-                success: true,
-                stats: results[0]
+        FROM materials
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('❌ Material stats error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
             });
         }
-    );
+        
+        res.json({
+            success: true,
+            stats: results[0]
+        });
+    });
 });
 
-// Get low stock materials
-app.get('/api/materials/low-stock', (req, res) => {
-    db.query(
-        'SELECT * FROM materials WHERE quantity <= min_quantity ORDER BY (quantity / min_quantity) ASC',
-        (err, results) => {
-            if (err) {
-                console.error('❌ Low stock query error:', err.message);
-                return res.status(500).json({ success: false, message: 'Database error' });
-            }
-            
-            res.json({ success: true, materials: results });
-        }
-    );
-});
-
-// Get materials by category
-app.get('/api/materials/category/:category', (req, res) => {
-    const category = req.params.category;
+// Get materials by supplier ID
+// Get all materials with supplier details
+app.get('/api/materials', (req, res) => {
+    console.log('\n📦 FETCHING MATERIALS ======================');
     
-    db.query(
-        'SELECT * FROM materials WHERE category = ? ORDER BY name',
-        [category],
-        (err, results) => {
-            if (err) {
-                console.error('❌ Get materials by category error:', err.message);
-                return res.status(500).json({ success: false, message: 'Database error' });
-            }
-            
-            res.json({ success: true, materials: results });
-        }
-    );
-});
-
-// Bulk update material stock
-app.patch('/api/materials/bulk/stock', (req, res) => {
-    const { materialIds, quantityChange } = req.body;
-    
-    if (!materialIds || !Array.isArray(materialIds) || materialIds.length === 0) {
-        return res.status(400).json({
-            success: false,
-            message: 'Material IDs array is required'
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        console.log('❌ No token provided');
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
         });
     }
-    
-    if (typeof quantityChange !== 'number') {
-        return res.status(400).json({
-            success: false,
-            message: 'Quantity change must be a number'
-        });
-    }
-    
-    const placeholders = materialIds.map(() => '?').join(',');
-    
-    db.query(
-        `UPDATE materials SET quantity = quantity + ? WHERE id IN (${placeholders})`,
-        [quantityChange, ...materialIds],
-        (err, result) => {
-            if (err) {
-                console.error('❌ Bulk stock update error:', err.message);
-                return res.status(500).json({ success: false, message: 'Database error' });
-            }
-            
-            res.json({
-                success: true,
-                message: `Updated stock for ${result.affectedRows} materials`,
-                updatedCount: result.affectedRows
+
+    const query = `
+        SELECT 
+            m.*,
+            s.name as supplier_name
+        FROM materials m
+        LEFT JOIN suppliers s ON m.supplier_id = s.id
+        ORDER BY m.created_at DESC
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('❌ Get materials error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error: ' + err.message 
             });
         }
-    );
-});
-
-// Search materials
-app.get('/api/materials/search/:query', (req, res) => {
-    const query = `%${req.params.query}%`;
-    
-    db.query(
-        `SELECT * FROM materials 
-         WHERE code LIKE ? OR name LIKE ? OR supplier LIKE ? OR category LIKE ?
-         ORDER BY name`,
-        [query, query, query, query],
-        (err, results) => {
-            if (err) {
-                console.error('❌ Material search error:', err.message);
-                return res.status(500).json({ success: false, message: 'Database error' });
-            }
-            
-            res.json({ success: true, materials: results });
+        
+        console.log(`✅ Found ${results.length} materials`);
+        
+        // Log first material to verify
+        if (results.length > 0) {
+            console.log('First material:', {
+                id: results[0].id,
+                name: results[0].name,
+                supplier_id: results[0].supplier_id,
+                supplier_name: results[0].supplier_name
+            });
         }
-    );
+        
+        res.json({ 
+            success: true, 
+            materials: results 
+        });
+    });
 });
 
 
@@ -3028,6 +3065,382 @@ app.patch('/api/variations/:id/reject', (req, res) => {
         }
     );
 });
+
+
+// ==================== EQUIPMENT ENDPOINTS ====================
+
+// Get all equipment with project and supplier details
+app.get('/api/equipment', (req, res) => {
+    console.log('\n🔧 FETCHING EQUIPMENT ======================');
+    
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).json({ 
+            success: false, 
+            message: 'No token provided' 
+        });
+    }
+
+    const query = `
+        SELECT 
+            e.*,
+            s.id as supplier_id,
+            s.name as supplier_name,
+            s.contact_person as supplier_contact,
+            p.id as project_id,
+            p.name as project_name,
+            p.location as project_location,
+            p.status as project_status
+        FROM equipment e
+        LEFT JOIN suppliers s ON e.supplier_id = s.id
+        LEFT JOIN projects p ON e.project_id = p.id
+        ORDER BY e.created_at DESC
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('❌ Get equipment error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error: ' + err.message 
+            });
+        }
+        
+        console.log(`✅ Found ${results.length} equipment items`);
+        
+        // Log first item to verify
+        if (results.length > 0) {
+            console.log('First equipment:', {
+                id: results[0].id,
+                name: results[0].name,
+                project: results[0].project_name,
+                project_id: results[0].project_id,
+                supplier: results[0].supplier_name
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            equipment: results 
+        });
+    });
+});
+
+// Get single equipment with project and supplier details
+app.get('/api/equipment/:id', (req, res) => {
+    const equipmentId = req.params.id;
+    
+    const query = `
+        SELECT 
+            e.*,
+            s.name as supplier_name,
+            s.contact_person as supplier_contact,
+            p.name as project_name,
+            p.location as project_location
+        FROM equipment e
+        LEFT JOIN suppliers s ON e.supplier_id = s.id
+        LEFT JOIN projects p ON e.project_id = p.id
+        WHERE e.id = ?
+    `;
+
+    db.query(query, [equipmentId], (err, results) => {
+        if (err) {
+            console.error('❌ Get equipment error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+        
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, message: 'Equipment not found' });
+        }
+        
+        res.json({ success: true, equipment: results[0] });
+    });
+});
+
+// Create new equipment
+app.post('/api/equipment', (req, res) => {
+    const { 
+        name, category, quantity, ownershipType, rateType, 
+        price, status, supplier_id, project_id, description 
+    } = req.body;
+    
+    console.log('\n📝 CREATE EQUIPMENT ======================');
+    console.log('Name:', name);
+    console.log('Category:', category);
+    console.log('Supplier ID:', supplier_id);
+    console.log('Project ID:', project_id);
+    
+    if (!name || !category || !ownershipType || !price) {
+        return res.status(400).json({
+            success: false,
+            message: 'Name, category, ownership type, and price are required'
+        });
+    }
+    
+    db.query(
+        `INSERT INTO equipment (
+            name, category, quantity, ownership_type, rate_type, 
+            price, status, supplier_id, project_id, description
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+            name, category, quantity || 1, ownershipType, rateType || null,
+            price, status || 'Available', supplier_id || null, 
+            project_id || null, description || null
+        ],
+        (err, result) => {
+            if (err) {
+                console.error('❌ Create equipment error:', err.message);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Database error: ' + err.message 
+                });
+            }
+            
+            const query = `
+                SELECT 
+                    e.*,
+                    s.name as supplier_name,
+                    p.name as project_name
+                FROM equipment e
+                LEFT JOIN suppliers s ON e.supplier_id = s.id
+                LEFT JOIN projects p ON e.project_id = p.id
+                WHERE e.id = ?
+            `;
+            
+            db.query(query, [result.insertId], (err2, rows) => {
+                if (err2) {
+                    return res.json({ 
+                        success: true, 
+                        message: 'Equipment created successfully',
+                        equipmentId: result.insertId 
+                    });
+                }
+                
+                console.log('✅ Equipment created with ID:', result.insertId);
+                res.status(201).json({
+                    success: true,
+                    message: 'Equipment created successfully',
+                    equipment: rows[0]
+                });
+            });
+        }
+    );
+});
+
+// Update equipment
+app.put('/api/equipment/:id', (req, res) => {
+    const equipmentId = req.params.id;
+    const { 
+        name, category, quantity, ownershipType, rateType, 
+        price, status, supplier_id, project_id, description 
+    } = req.body;
+    
+    console.log('\n📝 UPDATE EQUIPMENT ======================');
+    console.log('Equipment ID:', equipmentId);
+    console.log('Supplier ID:', supplier_id);
+    console.log('Project ID:', project_id);
+    
+    const query = `
+        UPDATE equipment 
+        SET name = ?, category = ?, quantity = ?, ownership_type = ?, 
+            rate_type = ?, price = ?, status = ?, supplier_id = ?, 
+            project_id = ?, description = ?
+        WHERE id = ?
+    `;
+    
+    const params = [
+        name, category, quantity || 1, ownershipType, rateType || null,
+        price, status || 'Available', supplier_id || null, 
+        project_id || null, description || null, equipmentId
+    ];
+    
+    db.query(query, params, (err, result) => {
+        if (err) {
+            console.error('❌ Update equipment error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error: ' + err.message 
+            });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Equipment not found' 
+            });
+        }
+        
+        const selectQuery = `
+            SELECT 
+                e.*,
+                s.name as supplier_name,
+                p.name as project_name
+            FROM equipment e
+            LEFT JOIN suppliers s ON e.supplier_id = s.id
+            LEFT JOIN projects p ON e.project_id = p.id
+            WHERE e.id = ?
+        `;
+        
+        db.query(selectQuery, [equipmentId], (err2, rows) => {
+            if (err2) {
+                return res.json({ 
+                    success: true, 
+                    message: 'Equipment updated successfully' 
+                });
+            }
+            
+            console.log('✅ Equipment updated:', equipmentId);
+            res.json({ 
+                success: true, 
+                message: 'Equipment updated successfully',
+                equipment: rows[0]
+            });
+        });
+    });
+});
+
+// Delete equipment
+app.delete('/api/equipment/:id', (req, res) => {
+    const equipmentId = req.params.id;
+    
+    console.log('\n🗑️ DELETE EQUIPMENT ======================');
+    console.log('Equipment ID:', equipmentId);
+    
+    db.query('DELETE FROM equipment WHERE id = ?', [equipmentId], (err, result) => {
+        if (err) {
+            console.error('❌ Delete equipment error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Equipment not found' 
+            });
+        }
+        
+        console.log('✅ Equipment deleted:', equipmentId);
+        res.json({ 
+            success: true, 
+            message: 'Equipment deleted successfully' 
+        });
+    });
+});
+
+// Get equipment statistics with project info
+app.get('/api/equipment/stats/summary', (req, res) => {
+    const query = `
+        SELECT 
+            COUNT(*) as total_equipment,
+            SUM(CASE WHEN status = 'Available' THEN 1 ELSE 0 END) as available,
+            SUM(CASE WHEN status = 'In Use' THEN 1 ELSE 0 END) as in_use,
+            SUM(CASE WHEN status = 'Under Maintenance' THEN 1 ELSE 0 END) as under_maintenance,
+            COUNT(DISTINCT category) as total_categories,
+            COUNT(DISTINCT supplier_id) as total_suppliers,
+            COUNT(DISTINCT project_id) as active_projects,
+            SUM(price * quantity) as total_value
+        FROM equipment
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('❌ Equipment stats error:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database error' 
+            });
+        }
+        
+        res.json({
+            success: true,
+            stats: results[0]
+        });
+    });
+});
+
+// Get equipment by project ID
+app.get('/api/equipment/project/:projectId', (req, res) => {
+    const projectId = req.params.projectId;
+    
+    const query = `
+        SELECT 
+            e.*,
+            s.name as supplier_name,
+            p.name as project_name
+        FROM equipment e
+        LEFT JOIN suppliers s ON e.supplier_id = s.id
+        LEFT JOIN projects p ON e.project_id = p.id
+        WHERE e.project_id = ?
+        ORDER BY e.name
+    `;
+
+    db.query(query, [projectId], (err, results) => {
+        if (err) {
+            console.error('❌ Get equipment by project error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+        
+        res.json({ success: true, equipment: results });
+    });
+});
+
+// Get equipment by supplier ID
+app.get('/api/equipment/supplier/:supplierId', (req, res) => {
+    const supplierId = req.params.supplierId;
+    
+    const query = `
+        SELECT 
+            e.*,
+            s.name as supplier_name,
+            p.name as project_name
+        FROM equipment e
+        LEFT JOIN suppliers s ON e.supplier_id = s.id
+        LEFT JOIN projects p ON e.project_id = p.id
+        WHERE e.supplier_id = ?
+        ORDER BY e.name
+    `;
+
+    db.query(query, [supplierId], (err, results) => {
+        if (err) {
+            console.error('❌ Get equipment by supplier error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+        
+        res.json({ success: true, equipment: results });
+    });
+});
+
+// Get equipment by status
+app.get('/api/equipment/status/:status', (req, res) => {
+    const status = req.params.status;
+    
+    const query = `
+        SELECT 
+            e.*,
+            s.name as supplier_name,
+            p.name as project_name
+        FROM equipment e
+        LEFT JOIN suppliers s ON e.supplier_id = s.id
+        LEFT JOIN projects p ON e.project_id = p.id
+        WHERE e.status = ?
+        ORDER BY e.name
+    `;
+
+    db.query(query, [status], (err, results) => {
+        if (err) {
+            console.error('❌ Get equipment by status error:', err.message);
+            return res.status(500).json({ success: false, message: 'Database error' });
+        }
+        
+        res.json({ success: true, equipment: results });
+    });
+});
+
+
+
 
 // ==================== START SERVER ====================
 app.listen(PORT, () => {
