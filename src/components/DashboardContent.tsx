@@ -1,225 +1,245 @@
-// import { useState } from "react";
-// import { 
-//   DashboardLayoutComponent,
-//   type PanelModel, 
-
-// } from "@syncfusion/ej2-react-layouts";
-// import { 
-//   GridComponent, 
-//   ColumnsDirective, 
-//   ColumnDirective, 
-//   Page, 
-//   Sort, 
-//   Filter, 
-//   Inject as GridInject, 
-//   Inject
-// } from "@syncfusion/ej2-react-grids";
-// import { 
-//   ChartComponent, 
-//   SeriesCollectionDirective, 
-//   SeriesDirective, 
-//   Inject as ChartInject, 
-//   ColumnSeries, 
-//   Category, 
-//   Legend, 
-//   Tooltip 
-// } from "@syncfusion/ej2-react-charts";
-// import { 
-//   GanttComponent, 
-//   ColumnsDirective as GanttColumns, 
-//   ColumnDirective as GanttColumn, 
-//   Inject as GanttInject, 
-//   Selection, 
-//   Toolbar 
-// } from "@syncfusion/ej2-react-gantt";
-// import { 
-//   PivotViewComponent, 
-//   Inject as PivotInject,
-//   FieldList,
-//   Toolbar as PivotToolbar
-// } from "@syncfusion/ej2-react-pivotview";
-// import { 
-//   DropDownListComponent 
-// } from "@syncfusion/ej2-react-dropdowns";
-
-// const DashboardContent = () => {
-//   const [selectedProject, setSelectedProject] = useState("All Projects");
-
-//   const projects = ["All Projects", "Highway Expansion", "Office Renovation"];
-
-//   const panels: PanelModel[] = [
-//     { id: "panel1", sizeX: 1, sizeY: 1, row: 0, col: 0, content: "<div>Ongoing Projects: 5</div>" },
-//     { id: "panel2", sizeX: 1, sizeY: 1, row: 0, col: 1, content: "<div>Teams: 12</div>" },
-//   ];
-
-//   return (
-//     <div className="space-y-6 p-4">
-//       {/* Dashboard Cards */}
-//       <div className="mb-6">
-//         <DashboardLayoutComponent 
-//           cellSpacing={[10, 10]} 
-//           columns={4} 
-//           panels={panels}
-//           id="dashboard-layout"
-//         />
-//       </div>
-
-//       {/* Project Filter */}
-//       <div className="mb-6 w-64">
-//         <DropDownListComponent
-//           dataSource={projects}
-//           value={selectedProject}
-//           placeholder="Select Project"
-//           change={(e) => setSelectedProject(e.value)}
-//           width="250px"
-//         />
-//       </div>
-
-//       {/* Charts Row */}
-//       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-//         <div className="bg-white p-4 rounded-lg shadow">
-//           <ChartComponent 
-//             id="chart1"
-//             primaryXAxis={{ valueType: "Category" }} 
-//             title="Project Progress"
-//             height="350px"
-//           >
-//             <Inject services={[ColumnSeries, Category, Legend, Tooltip]} />
-//             <SeriesCollectionDirective>
-//               <SeriesDirective
-//                 dataSource={[
-//                   { x: "Project A", y: 70 },
-//                   { x: "Project B", y: 50 },
-//                 ]}
-//                 xName="x"
-//                 yName="y"
-//                 type="Column"
-//                 name="Progress"
-//               />
-//             </SeriesCollectionDirective>
-//           </ChartComponent>
-//         </div>
-
-//         <div className="bg-white p-4 rounded-lg shadow">
-//           <ChartComponent 
-//             id="chart2"
-//             primaryXAxis={{ valueType: "Category" }} 
-//             title="Team Workload"
-//             height="350px"
-//           >
-//             <Inject services={[ColumnSeries, Category, Legend, Tooltip]} />
-//             <SeriesCollectionDirective>
-//               <SeriesDirective
-//                 dataSource={[
-//                   { x: "Team A", y: 30 },
-//                   { x: "Team B", y: 50 },
-//                 ]}
-//                 xName="x"
-//                 yName="y"
-//                 type="Column"
-//                 name="Workload"
-//               />
-//             </SeriesCollectionDirective>
-//           </ChartComponent>
-//         </div>
-//       </div>
-
-//       {/* Data Grid */}
-//       <div className="bg-white p-4 rounded-lg shadow mb-6">
-//         <h3 className="text-lg font-semibold mb-4">Project Overview</h3>
-//         <GridComponent
-//           dataSource={[
-//             { id: 1, name: "Highway Expansion", status: "Ongoing", deadline: "2026-10-15" },
-//             { id: 2, name: "Office Renovation", status: "Completed", deadline: "2025-12-20" },
-//           ]}
-//           allowPaging={true}
-//           allowSorting={true}
-//           allowFiltering={true}
-//           height="300px"
-//         >
-//           <ColumnsDirective>
-//             <ColumnDirective field="name" headerText="Project Name" width={150} />
-//             <ColumnDirective field="status" headerText="Status" width={100} />
-//             <ColumnDirective field="deadline" headerText="Deadline" width={120} />
-//           </ColumnsDirective>
-//           <GridInject services={[Page, Sort, Filter]} />
-//         </GridComponent>
-//       </div>
-
-//       {/* Gantt Chart */}
-//       <div className="bg-white p-4 rounded-lg shadow mb-6">
-//         <h3 className="text-lg font-semibold mb-4">Project Timeline</h3>
-//         <GanttComponent
-//           dataSource={[
-//             { TaskID: 1, TaskName: "Project Planning", StartDate: new Date("2026-01-01"), Duration: 5, Progress: 100 },
-//             { TaskID: 2, TaskName: "Execution", StartDate: new Date("2026-01-06"), Duration: 10, Progress: 50 },
-//           ]}
-//           taskFields={{ 
-//             id: "TaskID", 
-//             name: "TaskName", 
-//             startDate: "StartDate", 
-//             duration: "Duration", 
-//             progress: "Progress" 
-//           }}
-//           height="350px"
-//           projectStartDate={new Date("2026-01-01")}
-//           projectEndDate={new Date("2026-02-01")}
-//         >
-//           <GanttInject services={[Selection, Toolbar]} />
-//         </GanttComponent>
-//       </div>
-
-//       {/* Pivot Table */}
-//       <div className="bg-white p-4 rounded-lg shadow">
-//         <h3 className="text-lg font-semibold mb-4">Budget Summary</h3>
-//         <PivotViewComponent
-//           dataSourceSettings={{
-//             dataSource: [
-//               { Project: "Highway Expansion", Status: "Ongoing", Budget: 50000 },
-//               { Project: "Office Renovation", Status: "Completed", Budget: 120000 },
-//               { Project: "Highway Expansion", Status: "Completed", Budget: 120000 },
-//             ],
-//             rows: [{ name: "Project" }],
-//             columns: [{ name: "Status" }],
-//             values: [{ name: "Budget", caption: "Total Budget" }],
-//             formatSettings: [{ name: "Budget", format: "C0" }],
-//           }}
-//           width="100%"
-//           height="350px"
-//           showFieldList={true}
-//           showToolbar={true}
-//         >
-//           <PivotInject services={[FieldList, PivotToolbar]} />
-//         </PivotViewComponent>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default DashboardContent;
-
-
-
-
-
-
-
-
+import { useState, useEffect } from "react";
 import CostPivotChart from "./CostPivotChart";
 import PieChartsDashboard from "./PieChartsDashboard";
 import QuickStats from "./QuickStats";
 
+// API Base URL
+const API_BASE = 'http://localhost:5000/api';
+
+// Helper for auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : '',
+  };
+};
+
 const DashboardContent = () => {
+  const [dashboardData, setDashboardData] = useState({
+    projects: [],
+    labour: [],
+    materials: [],
+    equipment: [],
+    variations: [],
+    tasks: [],
+    suppliers: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState('ytd');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Fetch all dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        const [
+          projectsRes,
+          labourRes,
+          materialsRes,
+          equipmentRes,
+          variationsRes,
+          tasksRes,
+          suppliersRes
+        ] = await Promise.allSettled([
+          fetch(`${API_BASE}/projects`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/labour`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/materials`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/equipment`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/variations`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/tasks`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/suppliers`, { headers: getAuthHeaders() })
+        ]);
+
+        const data: any = {};
+
+        if (projectsRes.status === 'fulfilled' && projectsRes.value.ok) {
+          const result = await projectsRes.value.json();
+          data.projects = result.projects || [];
+        }
+
+        if (labourRes.status === 'fulfilled' && labourRes.value.ok) {
+          const result = await labourRes.value.json();
+          data.labour = result.labour || [];
+        }
+
+        if (materialsRes.status === 'fulfilled' && materialsRes.value.ok) {
+          const result = await materialsRes.value.json();
+          data.materials = result.materials || [];
+        }
+
+        if (equipmentRes.status === 'fulfilled' && equipmentRes.value.ok) {
+          const result = await equipmentRes.value.json();
+          data.equipment = result.equipment || [];
+        }
+
+        if (variationsRes.status === 'fulfilled' && variationsRes.value.ok) {
+          const result = await variationsRes.value.json();
+          data.variations = result.variations || [];
+        }
+
+        if (tasksRes.status === 'fulfilled' && tasksRes.value.ok) {
+          const result = await tasksRes.value.json();
+          data.tasks = result.tasks || [];
+        }
+
+        if (suppliersRes.status === 'fulfilled' && suppliersRes.value.ok) {
+          const result = await suppliersRes.value.json();
+          data.suppliers = result.suppliers || [];
+        }
+
+        setDashboardData(data);
+        setLastUpdated(new Date());
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+    
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchDashboardData, 300000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+          <p className="mt-4 text-sm text-gray-500">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-red-100 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="text-sm font-medium text-red-800">Unable to load dashboard</h3>
+              <p className="text-sm text-red-600 mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const dateRangeOptions = [
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' },
+    { value: 'quarter', label: 'This Quarter' },
+    { value: 'ytd', label: 'Year to Date' },
+    { value: 'all', label: 'All Time' },
+  ];
+
   return (
-    <div className="p-4 space-y-6 bg-gray-100 min-h-screen">
-      {/* Quick Stats Cards */}
-          <h1>Quick Stats</h1>
-      <QuickStats />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Executive Dashboard</h1>
+              <div className="flex items-center mt-1 space-x-4">
+                <p className="text-sm text-gray-500">
+                  Last updated: {lastUpdated?.toLocaleTimeString()}
+                </p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-500">Period:</span>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                {dateRangeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setDateRange(option.value)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                      dateRange === option.value
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <PieChartsDashboard />
-      
-      <CostPivotChart /> 
+      {/* Main Content */}
+      <div className="px-8 py-6">
+        {/* KPI Cards */}
+        <QuickStats data={dashboardData} />
 
+        {/* Analytics Section */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Performance Analytics</h2>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-500">Export</span>
+              <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <PieChartsDashboard data={dashboardData} />
+        </div>
+        
+        {/* Cost Analysis */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Financial Overview</h2>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                <span className="text-xs text-gray-600">Budget</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 bg-emerald-600 rounded-full"></span>
+                <span className="text-xs text-gray-600">Actual</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="w-2 h-2 bg-amber-600 rounded-full"></span>
+                <span className="text-xs text-gray-600">Variance</span>
+              </div>
+            </div>
+          </div>
+          <CostPivotChart data={dashboardData} />
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <p className="text-xs text-gray-400 text-center">
+            © 2026 BuildSetu. All rights reserved. | Data refreshes every 5 minutes
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
