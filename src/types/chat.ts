@@ -7,25 +7,23 @@ export type User = {
 
 export type ChatType = "direct" | "group" | "broadcast";
 
+export type MessageTarget =
+  | { type: "direct"; toUserId: string }
+  | { type: "group"; toGroupId: string }
+  | { type: "broadcast" };
+
+export type MessageContent =
+  | { type: "text"; text: string }
+  | { type: "image"; url: string; caption?: string }
+  | { type: "file"; url: string; name: string };
+
 export type Message = {
   id: string;
   senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-  target: {
-    type: ChatType;
-    toUserId?: string;     // direct
-    toGroupId?: string;    // group
-    toAll?: boolean;       // broadcast
-  };
-};
+  senderDisplayName?: string;
 
-export type ChatRoom = {
-  id: string;
-  name: string;
-  type: ChatType;
-  participants: User[];
-  unreadCount: number;
-  messages: Message[];
+  content: MessageContent | string; // ✅ supports old + new
+  timestamp: number | string;
+
+  target: MessageTarget;
 };
