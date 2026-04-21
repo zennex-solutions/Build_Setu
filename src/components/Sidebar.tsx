@@ -13,24 +13,100 @@ interface SidebarLink {
 
 // Define all sidebar links with role-based access
 const allSidebarLinks: SidebarLink[] = [
-  { name: "Dashboard", href: "/dashboard", icon: "🏠", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR","ACCOUNTANT","CONTRACTOR","CLIENT"] },
-  { name: "Projects", href: "/projects", icon: "📁", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR","CLIENT"] },
-  { name: "Teams", href: "/teams", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-  { name: "Task Assign", href: "/task-assign", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-  { name: "Reports", href: "/reports", icon: "📊", roles: ["SUPER_ADMIN","ACCOUNTANT","PROJECT_MANAGER"] },
-  { name: "User Approvals", href: "/userapproval", icon: "✅", roles: ["SUPER_ADMIN"] }, // only Super Admin
+  {
+    name: "Dashboard",
+    href: "/dashboard",
+    icon: "🏠",
+    roles: [
+      "SUPER_ADMIN",
+      "PROJECT_MANAGER",
+      "SITE_ENGINEER",
+      "SUPERVISOR",
+      "ACCOUNTANT",
+      "CONTRACTOR",
+      "CLIENT",
+    ],
+  },
+  {
+    name: "Projects",
+    href: "/projects",
+    icon: "📁",
+    roles: [
+      "SUPER_ADMIN",
+      "PROJECT_MANAGER",
+      "SITE_ENGINEER",
+      "SUPERVISOR",
+      "CLIENT",
+    ],
+  },
+  {
+    name: "Teams",
+    href: "/teams",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
+  {
+    name: "Task Assign",
+    href: "/task-assign",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
+  {
+    name: "Reports",
+    href: "/reports",
+    icon: "📊",
+    roles: ["SUPER_ADMIN", "ACCOUNTANT", "PROJECT_MANAGER"],
+  },
+  {
+    name: "User Approvals",
+    href: "/userapproval",
+    icon: "✅",
+    roles: ["SUPER_ADMIN"],
+  }, // only Super Admin
   { name: "Users", href: "/users", icon: "👷", roles: ["SUPER_ADMIN"] },
-   { name: "Material Details", href: "/material-page", icon: "👷", roles: ["SUPER_ADMIN"] },
-    { name: "Labour Details", href: "/labour-page", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-    { name: "Supplier Details", href: "/suppliers", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-    { name: "Messages", href: "/messages", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-    { name: "Variations", href: "/variations", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] },
-    { name: "Equipment", href: "/euipments", icon: "👷", roles: ["SUPER_ADMIN","PROJECT_MANAGER","SITE_ENGINEER","SUPERVISOR"] }
+  {
+    name: "Material Details",
+    href: "/material-page",
+    icon: "👷",
+    roles: ["SUPER_ADMIN"],
+  },
+  {
+    name: "Labour Details",
+    href: "/labour-page",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
+  {
+    name: "Supplier Details",
+    href: "/suppliers",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
+  {
+    name: "Messages",
+    href: "/messages",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
+  {
+    name: "Variations",
+    href: "/variations",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
+  {
+    name: "Equipment",
+    href: "/euipments",
+    icon: "👷",
+    roles: ["SUPER_ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "SUPERVISOR"],
+  },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ role }) => {
   // Filter links based on role
-  const sidebarLinks = allSidebarLinks.filter(link => link.roles.includes(role));
+  const sidebarLinks = allSidebarLinks.filter((link) =>
+    link.roles.includes(role),
+  );
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 p-6">
