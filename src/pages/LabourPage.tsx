@@ -17,15 +17,6 @@ const getAuthHeaders = () => {
   };
 };
 
-// =====================
-// Data Transformers
-// =====================
-// =====================
-// Data Transformers - FIXED
-// =====================
-// =====================
-// Data Transformers - FIXED
-// =====================
 const mapDbToForm = (dbRecord: any, projectMap: Record<number, string>) => {
   if (!dbRecord) return {};
   

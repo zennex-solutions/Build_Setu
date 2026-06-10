@@ -1,17 +1,3 @@
-// import { StrictMode } from 'react'
-// import { createRoot } from 'react-dom/client'
-// import './index.css'
-// import App from './App.tsx'
-// import { registerLicense } from '@syncfusion/ej2-base';
-// registerLicense('Ngo9BigBOggjHTQxAR8/V1JGaF1cXmhLYVJ1WmFZfVhgdl9HaVZSTWYuP1ZhSXxVdkdjX39ccX1WT2RYWUF9XEA=');
-// createRoot(document.getElementById('root')!).render(
-//   <StrictMode>
-//     <App />
-//   </StrictMode>,
-// )
-
-
-
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
